@@ -1,0 +1,88 @@
+
+Parannuksia St. Vitus' Lisp:iin: (Meditoinut Antti Karttunen)
+
+&aux ja &opt keywordit defun:iin.
+(arg_count discipline body) muutettakoon niin
+ett{ arg_count:in tilalle tulee byte_pair jossa toinen byte on vissiin
+pienin mahdollinen argumenttien m{{r{, ja toinen on suurin mahdollinen
+argumenttien m{{r{ + &aux-variaabelien m{{r{. (tai jotain ?)
+Toisen pit{{ olla ainakin se m{{r{ mik{ allokoidaan stackista
+joka tapauksessa.
+Ja ehk{ optional-argumentit (ja auxitkin ?) pit{isi initialisoida
+nilleiksi, mik{li se ei vie liikaa aikaa...
+
+(pick n) systeemi muutettakoon niin ett{ niiden tilalle tulee joku
+pick-integer-subtype hommeli, eli integer subtypen{ on joku #pick
+ja arvona relatiivinen osoitus stackiin (jota ei ole edes nelj{ll{
+jaettu). Printattaisiin jotenkin tyyliin <#pick n> miss{ n olisi
+nelj{ll{ jaollinen offsetti stackiin framepointer:ista katsottuna.
+Sitten olisi tietysti joku (make-pick-ref n) funktio joka loisi pick-muodon.
+<TEHTY JO !>
+
+lists1.c mokkulaa paremmaksi.
+K{ytet{{n joko ctp_:t{, tai vaikka omaa 16-bittist{ character-tablea
+enemm{n, ja poistetaan turhat set-*-mode ja isCquote, isSTRquote, etc.
+funktiot.
+
+user definable integer subtypes, eli olisi vaikka Lispist{ k{sin
+accessoitavissa oleva 16 elementti{ pitk{ compact-list-vektori
+*integer-subtypes* jossa olisi elementtein{ joko nil:lej{, stringej{,
+C tai Lisp-funktioita. Jos elementtin{ on nil, niin silloin k{ytet{{n
+printtaukseen elementin 0 eli tavallisen integerin asetuksia.
+Jos elementti on stringi, niin sit{ k{ytet{{n fprintf:in format-stringin{.
+Jos elementti on C tai Lisp-funktio, niin sit{ kutsutaan ko. characteri
+argumenttina, ja sen teht{v{n{ on palauttaa asianmukainen stringi tai
+mik{ tahansa expression mik{ sitten printataan johonkin.
+<TEHTY JO!>
+
+funktio (set-subtype x subtype) miss{ x on integeri ja subtype on v{lilt{
+0 - 15, funktio asettaa x:n subtypen.
+(subtype x) taas palauttaa subtypen 0-15.
+<TEHTY JO!>
+
+eval ja gapply assulla ???
+
+68k versionkin vois tehd{ joskus... (ikuisuusjuttu...)
+68000 ja 68010 miss{ on 24 bittinen addressointi, ja ylimm{n byten (8 bitti{)
+voi k{ytt{{ flag-bittein{. 68020:st{ yl|sp{inkin ehk{ toimisi jos
+muisti allokoitaisiin joko alimmasta 2^24 eli 16 megabytest{, tai sitten
+muuten yhten{isest{ 16 megan muistialueesta, jolloin ylimm{t 8 bitti{
+osoitteesta voisi olla maskattu pois, ja niiden tilalla fl{git, ja sitten
+kun muistia taas accessoitaisiin niin se 8 bitti{ haettaisiin jostain
+variablesta.
+
+
+Jonkinlainen apropos -funktio jolle annettaisiin argumentti tyyliin:
+(apro "set*")
+joka etsisi *oblist*:ist{ kaikki symbolit jotka alkaa kirjaimilla set
+ja n{ytt{isi niiden arvot tai oikeastaan vaikka 40 ekaa merkki{,
+jos pitki{ stringej{. (Ja tyypin).
+Tai stringeist{ ilmoittaisi vain ett{ on stringi, mutta muista n{ytt{isi
+mit{ on... 
+ 
+ 
+Joku systeemi mill{ saisi allokoitua stackist{ temporary cons-cellej{,
+esim. funktio tyyliin:
+(%mcl item space1 space2)
+tekisi item:ist{ sirkulaarisen listan (item item item ...) k{ytett{v{ksi
+map-funktioiden argumenttina, k{ytt{en kahden cons-cellin luomiseen ko.
+funktion lokaaleja variaabeleita space1 ja space2 (siis pick-muotoja) joiden
+pit{isi olla per{kk{in. Tietysti pit{isi varmistaa ett{ stack-segmentti
+osuu rajoihin ?000:0000 - (?+1)000:0000 etteiv{t luodut cons-solut
+osuisi "raja-alueelle", jolloin car, cdr ja muut joko herjaavat virhett{,
+tai seuraavat v{{rin listaa.
+ 
+Vastaavasti (%list1 item space1 space2) tekisi yhden elementin listan,
+(item).
+
+Jossain voisi tietysti olla tarkistus ett{ jos joudutaan listaan mik{
+on stack-segmentiss{ "ylemp{n{" kuin currentti stack-pointteri
+(jolloin kyseess{ on "dangling reference") niin herjataan ertzua.
+(Mutta vie ehk{ liikaa aikaa...)
+
+ 
+C-tyyliset makrot ?
+(define max (x y) (if (greaterp x y) x y))
+Miss{ formal argumentit x ja y vaan raa'asti korvattaisiin kutsuvan
+muodon expressioneilla.
+ 

@@ -1,0 +1,2464 @@
+ 
+ 
+                       St. Vitus' Lisp
+ 
+              Lisp Interpreter for MS-DOS machines.
+ 
+                   Copyright (C) 1988 - 1991
+                             by
+                      Antti J. Karttunen
+
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 1, or (at your option)
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License (file GPL.TXT) for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    PREFACE
+    
+     Note: In this document words "cons cells" and "list nodes"
+     are used interchangeably. Also () and nil mean the same thing.
+     Sometimes acronym SVL is used for St. Vitus' Lisp. Acronym i*86
+     is used for all the Intel series processors 8086, 8088, 80126,
+     80286, 80386 and so on.
+
+     Note: I do not use any version numbering with St. Vitus's
+     Lisp, instead when the program is started it will print
+     it's header:
+St. Vitus's Lisp (X)  Copyright (C) 1991 A. Karttunen. Enter (help) for help.
+     where X is number of the internal functions. Generally this will
+     be greater in future when more functions are added to the system.
+     Currently X is 206.
+     And this version is still PREMATURE! Even this document is
+     premature and contains perhaps erroneous information.
+ 
+ 
+     INTRODUCTION
+
+     Saint Vitus' Lisp is relatively small, relatively effective,
+     and relatively unconventional lisp interpreter for MS-DOS
+     machines with Intel's i*86 series of processors.
+
+ 
+     Some of the basic ideas behind the St. Vitus' Lisp:
+ 
+     1) St. Vitus' Lisp doesn't attempt to be a compatible
+        with any standard, not at least with Common Lisp.
+        However, some functions does have the same names as in
+        Franz Lisp of unix/vms, and maybe SVL gets closer to
+        Franz in future.
+ 
+     2) St. Vitus' Lisp uses freely all kind of features and
+        concepts from various dialects of lisp (Franz Lisp,
+        Interlisp, Commonlisp), and from the other programming
+        languages too, most notably from the C language.
+
+     3) St. Vitus' Lisp is not so "high-level" language as
+        lisps usually, instead it's more like between the C and
+        traditional Lisps. Emphasis is not so much on "high-level"
+        AI-coding than providing simple, powerful interpreter for
+        all kind of little tasks where I have usually used C.
+        Of course you can use SVL also for the traditional AI-tasks,
+        for the Lisp as general purpose language is suitable for
+        almost all kind of problems.
+          Especially I have been interested about reading and
+        parsing sophisticated symbolic input possibly with
+        nesting list structures, and for compiling and translating
+        this data. (Optimizers, assemblers, compilers, human-text
+        analyzers). For this reason, special emphasis is put on
+        the flexibility of the
+        I/O-system. This is acquired with user definable read
+        macros, possibility to define own integer subtypes
+        and output-formats for them, and by tuning the
+        I/O-system by modifying the *charflags* and *io-flags*
+        system variables.
+ 
+     4) Although St. Vitus' Lisp is interpreter it attempts
+        to be comparatively fast and memory-effective. Following
+        things contribute to the speediness of system:
+ 
+        a) There's no type-checking not at all so much as in
+           traditional lisps. See section TYPE CHECKING.
+
+        b) St. Vitus' Lisp uses a new innovative method for
+           transferring the actual arguments to the called
+           function. See section FUNCTION CALLING.
+
+        c) Source code doesn't attempt to be easily portable. Most
+           fundamental functions like car, cdr, argument
+           pushing functions, etc. are coded in assembly
+           language of i*86 processors. However, it shouldn't
+           be ultimately impossible to port the SVL to machines
+           using MC68k, for example.
+ 
+        d) Data structures make optimal use of the segment:offset
+           long pointers of Intel's (awful) architecture, so that
+           basic objects of St. Vitus' Lisp take only 3 bytes
+           in memory, cons cells only six bytes, and compact
+           lists, another innovation, only half of that, three
+           bytes per node. In this respect, however, some of the
+           speed is sacrificed for the data compactness.
+
+        But if you are still wondering why code runs so slowly
+        on some particular occassion, you must remember that
+        this is only interpreter, after all. And of course execution
+        time also depends whether you run software on 4.77 Mhz
+        original PC/XT or on some 33 Mhz monster.
+
+
+     5) SVL doesn't attempt to be a pedantic and strict language
+        like some Pascal, which concentrates more on what programmer
+        SHOULDN'T do, than what (s)he COULD do. Instead it tries
+        to be exact opposite, so that almost everything should be
+        possible, like in the assembly language, even if that may
+        result bad, unpractical, weird-looking, unlegible, or even
+        buggy code. Self-modifying code is the one example.
+        So it's attempted to give programmer the full control of
+        internal machinery of the system, even if that's "dangerous".
+        I assume that programmer using this system has at least some
+        knowledge of the C and assembly languages (not to talk about
+        lisp!), and of the internal workings of the processor
+        at machine code level, rather than to be some theoretical-minded
+        "high-level" type. And so I hope that (s)he has the self-discipline
+        to write the correct code.
+
+     6) Note that SVL isn't ready yet, probably never, as all my
+        programs are under the constant development. There are
+        probably numerous bugs, and numerous other misfeatures.
+ 
+
+
+   REQUIREMENTS
+
+       You can run St. Vitus' Lisp on any computer having some
+     Intel's i*86 processor and some reasonable version of
+     MS-DOS. So this includes at least IBM/PC-clones, NEC/PC-9801
+     and clones, and maybe even Nokia's obsolete MikroMikko 2 ????
+       I am not sure how much of the ram SVL needs, but I hope
+     that you have enough. I have run this on machine having 512K,
+     so at least it suffices. SVL doesn't use any graphics-modes,
+     so any screen-controller goes. The global variable *screen*
+     points to the beginning of CGA-videomemory, but that's easily
+     changed.
+       I have run SVL on these machines, among others:
+
+     1) PC/AT clone with 512K of ram and MS-DOS 3.30
+
+     2) PC/386 with the megabytes of ram and MS-DOS 5.00
+        (This distribution is compiled with this machine.)
+
+     3) Epson PC-286/LE with 640K of ram and Japanese version
+        of MS-DOS 4.01 This computer is compatible with the Japanese
+        NEC PC-9801.
+
+     Modules have been compiled with Aztec-C version 3.40a,
+     assembled with Aztec 8086 Assembler version 3.40a and
+     linked with Aztec C Linker Vers. 3.40a. See the file
+     COMPILE.LOG which contains the log of all modules compiled
+     and linked, and also some virus-checking.
+     Note that some assembly-code is extremely Aztec-specific
+     and it's dubious whether this compiles with even any other
+     C-compiler & assembler for the PC-clones. Assembly-functions
+     have been written relying on the fact that only SI & DI
+     registers and CS, DS & SS segment registers need to be saved
+     between function calls, but AX, BX, CX, DX and ES can be
+     modified freely. Sixteen-bit integer results are returned
+     in AX and 32-bit integer results in DX and AX, so that former
+     contains the high word, and latter the low word.
+     Functions coded with C are called so that arguments are pushed
+     from right to left so that first argument in list is left
+     topmost on the stack. Calling function unwinds the stack
+     with ADD SP,somevalue instruction after the called function
+     has returned with RET instruction.
+     Also there is some Aztec-specific library functions like
+     ptrtoabs, _ptradd and _ptrdiff for the conversion of long
+     pointers to 20-bit absolute addresses and so on.
+     Function scdir scans the directory in the function dir (lispfuns.c)
+     and scr_getc() in sighandler (lisp.c) function gets the one character
+     from the keyboard without echo and without waiting the CR.
+
+
+   COMMAND LINE OPTIONS & ENVIRONMENT VARIABLES
+
+       You can start St. Vitus' Lisp simply by entering
+     lisp
+     and that starts the interpreter.
+     Currently there is only one option, -l, which tells
+     the interpreter to automatically load the file whose
+     name is following the option. If filename doesn't
+     contain the period (.), then the default extension .LSP
+     is used. There can be space between -l and filename,
+     but doesn't have to. Example:
+     lisp -lveba this stuff is ignored -l hiba.l
+     loads files veba.lsp and hiba.l to interpreter at the
+     starting time. Note that all other command line arguments
+     are ignored at starting time, and can be later accessed
+     with argv-function.
+ 
+
+     There is also following environment variables which
+     affect the workings of SVL:
+ 
+
+     MAXMEM
+       This is the most important one, because this affects how
+     much memory is allocated at the initialization of list system.
+     If this environment variable is not defined, or is not numeric
+     then default value 150000 is used. If value of this variable
+     is too small then memory can be exhausted, and when that
+     condition is encountered SVL stops the execution brutally,
+     and exits back to shell. So it's generally good idea to set
+     this environment variable as big as possible. However, if
+     you want to use shell-function (which jumps to shell), then
+     you should leave enough space for command interpreter of the
+     operating system. If MAXMEM is set to too big value, then
+     the error message like this is printed:
+initlists: can't set heap pointer to 0x9d0b0008 ! heap: 0x786c0008 allocspace:
+150000.
+     and you should set MAXMEM to smaller value respectively.
+
+ 
+     OBTABSIZE
+       This is an environment variable used to set the size of
+     the internal symbol table *obtable*. By default it's 251.
+     For more information see description of global variable *obtable*.
+
+     LINEBUFSIZE
+       This is an environment variable used to set the size of
+     the internal read buffer. By default it should be big enough
+     for the most purposes, so you probably don't need to use
+     this one.
+
+
+   TYPES OF DATA OBJECTS IN LISP
+ 
+       One of the most fundamental differences between Lisp and
+     more conventional programming languages is that while latter
+     have usually the compiletime-typing (like int x or char c in C),
+     lisp has the runtime typing. This means that every data object
+     in lisp contains also little piece of information (usually called
+     a tag) which tells the type of that data object. That is, whether
+     it's a list, integer, symbol or something else. And that
+     information is used at runtime to decide what to do for the object.
+     Here is the detailed description of the various data types of
+     St. Vitus' Lisp and how they are implemented at C and assembly
+     level:
+ 
+       Fundamental type of the list system is TOB (at source level!),
+     meaning simply 'Typed OBject'. It's defined in lists.h as:
+     typedef ULI TOB;
+     ULI meaning 'Unsigned Long Integer', i.e. it's 32-bit unsigned
+     entity (i.e. doubleword). TOB is composed of the following fields:
+
+     3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 : 1 1 1 1 1 1
+     1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 : 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+    :       :   : : :                :
+    :Highest: T :C: :                :
+    :nybble : Y :O: : these bits are :    OFFSET of the pointer,
+    :of the : P :M: : set to zeroes  :     or 16-bit integer if
+    :segment: E :P:*: when object is :       the type is INT
+    :  or   :   :A: : loaded from    :
+    :integer:   :C: : the memory.    :
+    :subtype:   :T: :                :
+    :       :   : : :                :
+
+     Bits 27-26 contain the type of TOB, allowing 4 different types.
+     Compact bit (25) is explained later, and bit 24 is reserved for
+     the future use. Low word, bits 15-0 contains the offset of pointer,
+     or 16-bit integer if type is INT. Four highest bits 31-28 contain
+     highest nybble of segment, other bits of segment set to zeroes,
+     when fetching data. However, if type is INT, then those bits contain
+     printing subtype of integer.
+
+     So TOB is 4 bytes, when it's loaded "out from memory" (as with car,
+     or value), but only 3 bytes when in memory, because bits 23-16 are
+     not needed, and in 4 byte mode they are always zeroes.
+     If type of TOB is pointer to somewhere, then bits 27-24 are just
+     masked off, and result is used as pointer.
+
+     Conanized pointers
+
+     With canonized pointer is usually understood the long pointer
+     of the i*86-processors, which is guaranteed to be in the format:
+     ????:000?
+     that is, segment part can be anything, but offset part is always
+     between 0-15, other nybbles than lowest one being zeroes.
+     Correspondignly with "conanized pointer" I mean a pointer which
+     is guaranteed to be in the format: ?000:????
+     I.e. offset part can be anything from 0 to 65535, but in segment
+     part only the highest nybble is significant, other ones being zeroes.
+     And because all 20-bit addresses from 0 to 1048575 can be uniquely
+     expressed with this format, other bits in segment can be used for
+     expressing run time type, or something else. Note that you get
+     absolute 20-bit address from conanized pointer just by putting
+     highest nybble to the front of other nybbles in offset part.
+     (That is: multiply the highest nybble with 65536 and add an offset).
+     There is functions conanize and t_conanize in the file conanize.asm,
+     and they are used for converting long pointers in arbitrary format
+     to the conanized form. t_conanize additionally sets the type byte
+     also. 
+ 
+     There are four basic types, there being just two bits reserved
+     for the type.
+     They are: 
+ 
+     CONS CELLS
+
+       These are list-nodes, list-nodes being six-byte entities
+     composed from the two fields, called for the lisp-historical
+     reasons CAR & CDR. Both can contain any other TOB object.
+     Usually car-field contains the 'head' of the list, and cdr-field
+     the 'tail', i.e. pointer to the rest of list. So if we have the
+     list which, when printed, looks like (A B C), it's in memory
+     looking like this:
+     (Exclamation-columns (!) stand for pointers to the
+     corresponding objects (in this case to symbols A, B and C),
+     arrows in CDR fields meaning a pointers to the next cons cells
+     and zeroes at upper lefthand corners mean that all compact
+     bits are off).
+
+      CAR CDR         CAR CDR         CAR CDR
+     +---+---+       +---+---+       +---+---+
+     :0  :0  :       :0  :0  :       :0  :0  :
+     : ! : --------> : ! : --------> : ! :NIL:
+     +-!-+---+       +-!-+---+       +-!-+---+
+       !               !               !
+       A               B               C
+ 
+     So this list takes altogether 3*(2*3) = 18 bytes in the memory.
+     However, if COMPACT bit (bit 25) is on in the CAR field of cons-cell,
+     then it means that rest of the list is not got by following the
+     pointer in the CDR field, instead it is just the address of this
+     cons cell plus size of TOB in memory (i.e. 3 bytes). List whose
+     all cons nodes have compact bit on (except last) is the so called
+     "compact list", and is effectively a vector, i.e. one-dimensional
+     array, except that elements of it can still be of the different
+     types. So the same list (A B C) as compact list is in memory:
+     (c at upper lefthand corner meaning that compact bit is on, 0 that
+     it is off).
+
+      Compact list                Same list after
+       (A B C):                   the cdr-function,
+                                  resulting (B C):
+
+      CAR CAR CAR CDR              CAR CAR CDR
+     +---+---+---+---+            +---+---+---+
+     :c  :c  :0  :0  :            :c  :0  :0  :
+     : ! : ! : ! :NIL:            : ! : ! :NIL:
+     +-!-+-!-+-!-+---+            +-!-+-!-+---+
+       !   !   !                    !   !
+       A   B   C                    B   C
+
+     So now it takes only 4*3 = 12 bytes in memory. Note that the
+     last cons cell in compact list must always be normal one,
+     compact bit off, and cdr containing NIL, because there is no
+     other way to mark the end of the compact list. Note that there
+     can exist even mixed lists of compact and normal cons cells,
+     e.g. if normal list is concatenated to the end of the compact
+     list or vice versa.
+       What is this mysterious NIL anyway ? Well, it's the most
+     important object of the list system, being just a longword zero,
+     and defined at source level as: #define NIL  ((TOB) 0)
+     It corresponds to the NULL of the C language, and is used with same
+     way to mark all kind of special conditions, and is also used as
+     truth value "false", to be opposite of all other TOB's which are
+     considered "true". So when the cdr-field of the cons cell is NIL,
+     it means that list ends here, so that list accessing functions
+     shouldn't go any further. Note that, although NIL has same type
+     bits as CONS cells (i.e. 00), it is still not proper CONS cell,
+     because there is no CAR or CDR field in it, it is just NIL,
+     containing no other information. However, CONS cells and NIL
+     belong to the same supertype which is LIST, because NIL also
+     stands for an empty list, i.e. the list where is no elements
+     (whose length is zero), and is printed as: ()
+     This is also only way to refer NIL in kanjidic, in lisp it can
+     be also referenced with the name nil.
+
+
+     SYMBOLS
+
+     Symbols may look just like some kind of strings at first glance,
+     but the print name of symbols which is visible, is only one aspect
+     of the symbols. There is two or three parts in symbols, which are:
+
+     Print name, which is just string containing the name of symbol.
+
+     Value, which is field which can contain any TOB object, usually
+     some information associated with symbol.
+
+     Plist, meaning "property list", kind of second value, which can also
+     used for keeping information about symbol. However, space for
+     plist field is allocated only if global variable *plist-flag* is
+     set to 1.
+     (By default this is on in St. Vitus' Lisp).
+
+     Symbol with print name "muuliaasi" is allocated to memory as:
+
+         value
+     +---+---+-----------+
+     :   :   :muuliaasi\0:
+     +---+---+-----------+
+     plist    ^
+     (optio-  :
+     nal)     Address of symbol points to the beginning of print name.
+
+     So it takes length of print name plus 4 bytes (3 for value,
+     1 for ending zero) or length of print name plus 7 bytes if
+     plist fields are used. Note that because address of symbols points
+     to the beginning of print name, it can be fetched just by converting
+     the symbol to the type string.
+       The most important point in symbols is that everyone is unique
+     (or at least should be), i.e. that there is never more than one symbol
+     in the lisp system with given name. This is guaranteed by functions
+     lookup & intern (in lists1.c), which maintain hash table of symbols
+     read into the system so far. So when string muuliaasi is encountered
+     in input stream, it is first checked that it is not already in symbol
+     table (called oblist, as for OBject LIST), and if it is, then that
+     old symbol is returned. Only if it is not previously met, is the new
+     symbol allocated.
+       Symbols are used in St. Vitus' Lisp for the names of the (global)
+     variables, and for the names of the functions, among other things.
+
+
+     INTEGERS
+
+       Integers are 16-bit words, which can be interpreted as signed
+     or unsigned numbers or as bit-masks, or characters, or for whatever
+     purpose user likes to apply them. Because these are not pointers
+     the segment bits 31-28 at the most significant nybble of high word
+     can be used for the other purposes. So they are used to denote the
+     printing subtype of integer, which affects how the integer is printed.
+     They are:
+ 
+       DEC    Ordinary decimal. This is default, (segbits are zero).
+
+       HEX    Unsigned hexadecimal, eg. 0xABCD
+
+       OCT    Unsigned octal, eg. 0177777
+
+       CHAR   Single character, eg. `c` That quotecharacter can be
+              changed, or it can be printed without quotes, with princ
+              for example.
+
+       PICK   Pick-forms. These are used for fetching function arguments
+              from the system stack. More about this below.
+
+     More printing subtypes can be invented at future, because there
+     is 2^4 = 16 possibilities. Integers with same magnitude but with
+     different subtypes are considered (or at least should be) equal,
+     although macro eq (in C-sources, defined in lists.h) which just
+     uses the == operator of the C, treats them as different. However,
+     function L_eq (in fundamen.asm) which is used by eq function of lisp,
+     treats them correctly as equal.
+
+
+     OTHERS
+
+     This is a typeclass containing all the other types, which are:
+
+       STRING  
+        This is just a pointer to C styled string. There isn't any
+        values or other things associated with it, just characters
+        of string followed by '\0', i.e. zero, as in C.
+
+
+       FP
+        This is the File Pointer, corresponding to FILE *fp type of C,
+        which is just conanized. These can be distinguished from other
+        subtypes of OTHER because they all point to that determined area
+        where C keeps its file pointers (stdin, stdout, etc.)
+
+
+       FUN or BCD (= binary code)
+        This is pointer to compiled function, i.e. binary coded, and
+	is currently distinguished from other subtypes by the fact
+        that because currently kanjidic and lisp are compiled in
+	"small code, large data" memory model, all the addresses of the
+        code are just 16 bits, so segment bits are zero. And because
+        there is operating system & other kind of garbage in low memory,
+        there (I hope so) isn't any pointers to data in area 0000:0000 to
+        0000:FFFF.
+        However, if list system is compiled in the future with "large code"
+        memory model, or for different processor (for M68k for example), type
+	testing must be done differently. Fortunately, most systems put
+	code and data to different sections, so it would suffice just to
+        test that pointer points to somewhere in code section.
+
+
+       ENDMARK
+        This is special object which is used to represent special conditions
+        where NIL cannot be used. It is simply 0xFFFF:FFFF, so it cannot
+        be stored in value of symbol or in list without corrupting it,
+	because when stored to memory and fetched back it's corrupted
+        to 0xFF00:FFFF because the second highest byte is not stored
+	to memory. Despite this defect it is still useful in certain
+	situations, for example, read-functions in lists1.c return
+	it if they detect some error (e.g. unbalanced parentheses), or
+	End Of File condition. It would be stupid to return NIL on
+	those occassions, because () can be part of legal input stream.
+	Also functions which take variable number of arguments,
+	like listn & clistn require this to be last argument of theirs,
+	so that they can detect when arguments end. (Because C doesn't
+	support variable number of arguments in any special way).
+
+
+   SYNTACTICAL CONVENTIONS
+ 
+       In general, for every internal lisp object there is corresponding
+     "external" ascii-represetation. It's the duty of the read functions
+     to convert to and allocate corresponding internal lisp objects
+     when it parses the external ascii-represetations, and the task
+     of the print functions is to do the translation from internal
+     binary objects to external ascii-format. Generally, reading
+     and parsing is much harder to do than the printing. Also,
+     every internal lisp object produces some output when printed
+     (at least garbage), but there is some lisp-objects which
+     cannot be read in, instead they must be created at the execution
+     time (like pick-expressions).
+
+     Here is some of the syntax explained, but I unfortunately haven't
+     time now to describe everything.
+
+       COMMENTS
+ 
+       There is two kind of comments. Everything after and including
+       semicolon (;) upto the end of line is ignored. This is the traditional
+       comment character used by the Lisp and most of the assembly
+       languages. Also everything inside /* and */ are ignored. Like
+       in C these don't nest.
+       ; For example, this is the semicolon-comment.
+       /* And this is the "C-style" comment. */
+
+       NUMBERS
+
+       Octal numbers are preceded by the digit 0, followed by one or
+       more octal digits (0-7) and delimited by some non-continuous
+       character, except period. For example, 0123456 is an octal number.
+       0 by itself is not.
+ 
+       Hexadecimal numbers are preceded by the prefix 0x followed
+       by one or more hexadecimal digits (0-9A-Fa-f).
+ 
+       Normal decimal integers begin with any other digit than zero,
+       followed by zero or more digits and delimited by
+       some non-continuous character. However, if value of the
+       global variable ibase is 8 then these kind of numbers are also
+       read in as octals. If number ends with a dot (.) then it's
+       understood as decimal even if its first digit is zero,
+       or ibase is 8. Also single digit 0 is understood as normal
+       decimal integer, not octal. Numbers greater than 65535
+       are read in as longcells, i.e. cons-cell is created for them,
+       car-field containing the low-word and cdr-field the high-word.
+       Longcells haven't been fully implemented yet, but maybe in
+       future they are also printed automatically as longwords and
+       some arithmetic functions like plus and times can take them
+       as arguments and return as results. But not yet.
+
+       Note that token beginning with digits but containing some
+       other continuous characters after them (e.g. letters),
+       is read as symbol, not number. E.g. 2SWAP is read as symbol
+       2SWAP not separately as the number 2 and symbol SWAP.
+
+       Character constants are enclosed by backquotes (`) and
+       contain one or two characters between them. Backslash
+       escape system can be also used, as with strings. If there
+       is one character, like `A` then it's put to the low byte
+       of resulting char-integer, and high byte is set to zero.
+       If there is two characters, like `QW` ("doublecharacter"),
+       then the first char is put to high byte, and second one
+       to low byte.
+
+       Strings begin with a doublequote (") and end with same
+       character, which should be at the same line. New string
+       is allocated for the characters between. Backslash escape
+       extensions are done also for them. (See the file PARSECHR.C
+       what escape-expressions are recognized).
+
+
+
+     Traditional interpreted lisp system has four main elements:
+ 
+     1) Read routines which do the hard work in translating
+        the data, i.e. lists, symbols, integers and so on from the
+        external format to the internal binary format.
+        It parses the input, allocates memory for the objects
+        encountered, and makes sure that there is always only
+        one symbol in system with same printname, by using
+        *oblist* to collect all encountered symbols.
+        (This is called interning, and it uses hashing for
+        speedy retrieval of symbols).
+        In this process all kind of fancy things are possibly
+        done, like macro expansion, etc.
+ 
+     2) Print routines which convert data from the internal
+        binary format to external ascii format. This is
+        generally a little bit easier than reading, but all
+        kind of fancy processing can be done on this time too.
+
+     3) Evaluating routines which evaluate the given lisp-expression
+        and return the result.
+ 
+     4) Garbage Collector which is periodically invoked when memory
+        is exhausted, and which examines all the used memory,
+        and frees those list nodes which are no longer accessible (used).
+        St. Vitus' Lisp doesn't have a Garbace Collector. More on
+        this below.
+ 
+     Then there is of course lots of functions to handle all
+     kind of fundamental things, like for following list nodes
+     (car & cdr) and constructing them (cons), allocating memory,
+     doing arithmetic, freeing list nodes, and so on.
+ 
+     Now the lisp interpreter is just the loop which first reads
+     expression from the standard input, then evaluates it, and
+     prints it out. In lisp this is expressed as (print (eval (read)))
+     And then that is done again and again, until user exits.
+
+     Source for parts 1 & 2 of St' Vitus Lisp is mainly in file
+     lists1.c and that code is also used by many other programs,
+     like KANJIDIC and ODE11.
+     Source for part 3 is mainly in files LISP.C and PUSHARGS.ASM.
+     Then there is also lots of files written in C and Assembly
+     for various built-in functions included in St. Vitus' Lisp.
+
+     MEMORY MANAGEMENT
+
+     Why there is no garbage collector in St. Vitus' Lisp ?
+ 
+     This is partly accidental, partly intentional.
+     Originally I thought to code it (that's why there is still
+     one surplus bit in TOBs, for gc-bit), but then I noticed that
+     it's very hard problem to keep track of all used list nodes,
+     because:
+ 
+     1) There is things called compact lists, which cannot be
+        followed by traditional "reversing-pointers" method.
+        And because normal and compact lists can be mixed
+        that makes things even more harder.
+ 
+     2) There's no clear boundary between interpreted lisp-level
+        and binary-coded C-assembly-level, because both interpreted
+        lisp-functions and machine-coded internal functions are
+        called essentially with same way, i.e. arguments are
+        pushed to system stack (sp) just in same way as they are
+        pushed in C. And so it's very hard to dig from the stack
+        every "still-in-use" TOB pointing to list node, because there
+        is a lot of miscellaneous binary stuff of underlying
+        C- and assembly-functions.
+  
+     3) Properly working garbage collectors are anyway notoriously
+        hard to code (if lisp system is not very simple), so I
+        thought it's better to go ahead with other things than
+        to start spending rest of my life fighting with lots of
+        insidious bugs crashing now and then the whole lisp system.
+ 
+     So what are the consequences of this ?
+ 
+       I have supplemented two functions for freeing not-anymore-used
+     lists and list-nodes. They are called free-list and free-cons.
+     They free the whole list and one cons cell (= list node)
+     respectively, i.e. put them back to freelist for later usage.
+     Of course using them requires extreme caution and understanding
+     how user's code works, because after the list is freed,
+     NO REFERENCES OF ANY KIND should be made to it or its toplevel parts.
+       Also user should note that every time (s)he uses cons
+     it takes six bytes of valuable memory, and list functions
+     which contain copying-routine inherently, like append and
+     reverse, all devour memory.
+       So there's three strategies for writing memory-effective code:
+
+     1) After data is read in use only "pure", "list-following"
+        functions like car, cdr, member, etc. to traverse various paths
+        of list-structures, but don't produce any new list nodes.
+
+     2) Use no-side-effecting functions like append and reverse which
+        copy their arguments before using them, but keep track of lists
+        which are no longer used, and then return them with free-list
+        and free-cons.
+ 
+     3) Use side-effecting functions rplaca, rplacd, rplacx, nconc,
+        nreverse and so on, but keep data in same list structures,
+        and change car-parts of them with rplaca, rplacx, and like,
+        but don't allocate any new list nodes.
+
+      In practice all of the techniques mentioned are used
+      together, and you can only hope that there's enough memory
+      and no logical bugs in your code.
+      Anyway, in other programming languages, like in C, you must
+      also keep track of memory usage by yourself. And at least
+      SVL doesn't halt mysteriously in the middle of the execution
+      for garbage collection, feature I find sometimes annoying, as it
+      may take a lot of time in some lisps.
+
+      I have thought that in future it would be possible to allocate
+      cons cells from the system stack (where is also arguments of
+      functions), so that they would be automatically deallocated
+      when returning from the enclosing function. But of course
+      this also creates a danger of so called "dangling references"
+      if so created cons cells are returned someway back to
+      calling function. (Also stack segment should be aligned to
+      an area of X000:0000 - X000:FFFF).
+
+
+
+      TYPE AND ERROR CHECKING
+
+      Generally only the most "low-level" functions like car, cdr, rplaca,
+      rplacd, setvalue (used by setq), value (fetchs value of symbol),
+      etc. do the type-checking so they catch errors flowing down from the
+      more sophisticated functions like reverse, memq, nconc and so on.
+      Most arithmetic functions doesn't have type-checking at all, and
+      neither have some string-using functions. Purpose of this is to
+      make code speedier and compacter but also to ensure that
+      programmer knows at the CODING TIME what's going for what ever function
+      (like (s)he must know also with C or assembly), instead of finding
+      it out with the trial and error method at the run-time.
+        If you supply invalid argument to function, for example:
+      (car 'a) then interpreter prints the following error message:
+ 
+      **ERROR: argument for function car is invalid !
+      03E8 05DE 0779
+      7400:1E5F a
+
+      **Back to toplevel.
+      ->
+      And returns back to toplevel.
+      03E8 05DE 0779 are the last three return-addresses dug from
+      the system stack, so that the righmost address points to
+      that location which called function car, middle one (05DE)
+      is address to function which called that function, and
+      leftmost is address to the function which in turn called that.
+      You can find from file LISP.SYM, in which built-in function
+      those addresses reside. For example, 0655 is function gapply_
+      and 07BC is function quit_, so car was called from the
+      gapply_, from where we can see that error was caught in
+      function which was directly called from the interpreter,
+      i.e. car. That's because all the internal functions called
+      from interpreted code go via internal function _gapply,
+      whose source is in the file lisp.c
+        Hex-number below that (7400:1E5F) is argument printed
+      in internal format, and after that is argument printed in
+      the normal symbolic format.
+        More examples:
+      (setq () 'kala) ; Trying to set value for nil produces the
+      following output:
+
+      **ERROR: 1. argument for function setvalue is invalid !
+      05DE 0779 0868
+      0000:0000 7400:1FAB
+      1st arg: ()
+      2nd arg: kala
+
+      When multiple argument function catches error it also says
+      which argument was erroneous, three return addresses, and
+      and then prints all arguments in their hex-formats and then
+      in normal format.
+
+
+      (append 'a '(b c)) ; Trying to append symbol to list, produces
+      the following output:
+
+      **ERROR: argument for function car is invalid !
+      0779 28DF 2AD0
+      7400:1E5F a
+
+      By examining LISP.SYM we find that 2AD0 is in the function
+      topcopy, 28DF is in the append, and 0779 is in the gapply.
+      (Of course those actual addresses can be changed in future
+      versions, when more stuff is added to executable
+      Actually, they are not anymore same in this distribution's
+      LISP.SYM these ones in this document).
+      From this we can see that interpreter called the
+      append, which called the topcopy (to make a new copy
+      of first argument), which in turn called the function car,
+      which detected the erroneous type of the argument.
+
+      Some of the list functions, namely last, length and memqnth
+      detect if their argument is a circular list by keeping
+      count of the length, and when it goes over 65535 back to
+      zero they output error message. Of course this means that
+      you cannot give them lists of longer than 65535 elements,
+      and because integers are just sixteen bits, the result
+      would be incorrect anyway.
+      (Compact list of 65536 elements takes at least 196611 bytes
+      of the memory and a normal list with the same length takes
+      393216 bytes).
+
+
+      FUNCTION CALLING
+
+      When in traditional dynamic binding lisp system function like
+             (defun zup (x y) (cons y x))
+      is called like (zup 'a 'b)
+      the first thing to do is save the old values of symbols x and y
+      to the stack, assign a and b to them, execute the function body
+      (in this case (cons y x) which results a dotted pair (b . a))
+      and when returning from the function, restore the old values of
+      x and y.
+        In St. Vitus' Lisp function is first "pre-compiled" by
+      defun to new form: (lambda 2 (cons <#pick 8> <#pick 4>))
+      where formal argument list is replaced by length of it, and all
+      formal arguments in body are replaced by pick-forms so that first
+      formal argument becomes <#pick 4>, second one becomes <#pick 8>,
+      third one becomes <#pick 12> and so on. Those pick-forms are
+      actually just integers which are printed in that peculiar way.
+      When function is called the actual arguments are evaluated from
+      left to right, but they are put into stack "as they were pushed"
+      from right to left, as in underlying C. When body of the called
+      function is executed after that and when eval subsequently
+      encounters pick-forms they are added to the current framepointer
+      to fetch corresponding actual argument from the stack.
+      So that's almost like C and Assembly language work at machine code
+      level. Of course this is strictly lexical binding.
+
+      There is three so called "disciplines" in SVL. Lambda, nlambda and
+      vlambda. First is normal case where arguments are evaluated
+      and pushed to stack one by one. Nlambda functions are internally
+      called just by one argument, their unevaluated argument list.
+      It's the duty of function in those cases to evaluate its
+      arguments. In general most of the control-forms like progn,
+      cond, if, or, and, while and so on are nlambdas. Vlambda is
+      my own invention, meaning "variable argcount lambda". Currently
+      it's almost the same as lambda except when function has been
+      defined as vlambda having zero arguments, then maximum _max_args
+      arguments from the arglist are pushed to stacklÜg237¶67»²²0¶;°¼¹†…1<:42"§"& ©%—/¶°¼/°¹3¹4¹:424·:2¹70¶;0¹4°±62;´4±´1°·129²º…1<:42:¹²¹;´º49²º¶°¼°¹3¹3:·1º4··'º42¹;´¹²60¶±200·2;60¶±20†…3:·1º4··98:º"§"& ©%0³:2¹:42´¹0¹3º¶²·:94³:42¹2;°¹62¹¹†…0¹3º¶²·:94·0±º:°¶0¹3º¶²·:64¹º:40·4·22³4·2²37¹6°¶0¹3¶4¹º…'³1·º¹9²4º;·º¶21212º:2¹:40º;´º460¶±2024¹±´¸64·2:42†…92¹º7³:4237¹6°¶0¹3¹87¹¹´±6<9·¶²22³4·2²;´º47¸:0·20º¼†…;·º¶21234¶62²;´º4“¹4º;·º¶2122»2·                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ë
+  IPL1  ` j ¼ğè5 èh è èÿ.  IO      SYSMSDOS   SYSMS-DOS INF AREA  6 „$¢K ¹ º Q‹ÊR3Ò» h  3íèqü¾; ¹ 3ÿó¦ZYtxBâÜé¥ &ŠEÁà
+£
+ÿ&‹EèU £ÿ‰ÿ&‹E3ÒH¹Ş÷ñ= v¸ Ñà‹ğŠ„õ ‹ĞÁâ
+‰ÿ&öe&EPè [PR3ÀŠ„ö Ãè ‰ ÿ£ÿZY» éö Áà™&E
+&UÃ	!#!%#)/è
+ uè téÍ ¾% 3ÿë¾0 ¿  ¹ ó¦Ãèz ½ j ¹ 3ÿƒÇQh  &‹5¡
+ÿ‹ØÁè‹ÖJJ÷âÿ ÿ‹È‹ÃÅs)h `U3íè\ h X‹øƒçÁèÀ3ö‹Ëó¤ah ëè< ëh  è şÿu¥YƒÇ â•Ã‹ÿ‹ÿ‹ÿ½ ë‹ŞÑë&‹° sÁîæÿÃj K ´ÍXsÏP K ´ÍXHPuéú°æ7ôëı ë  IPL1    úŒĞ.£O ‹Ä.£Q 3ÀĞ¼ğûŒØ.£M è% è= ÿ ú.¡Q ‹à.¡O Ğû.¡M Ø¹ Ë      3ÀÀ& „$¢ 3Û´„Ís¾Á ë8Ãº  ¹ û t¹ » ¸ À3í  ´Ísş t	  ´Íëè¾Á ëÃ¸  À¿3À¬< t«ëøúº7 °îôëıERROR:Hard Disk Boot Failure                                Uªë[EPSON4.0        ø              ` )                               IO      SYSMSDOS   SYS j ¼ğüV¡ 3Ò  ‰ ÿ£ÿè  Áà
+£
+ÿ¡ ÷á  £ÿ‰ÿ¡ Áà
+£ÿ  ö&  ÷á  PY¸  À3íèı V¾F 3ÿè¾Q ¿  è^‹ÿ‹ÿ‹ÿ½ èØ ½ j ¹ 3ÿƒÇQh  &‹5¡
+ÿ‹ØŠ\ €ÁÓè‹ÖJJ÷âÿ ÿ‹È‹ÃÅs)h `U3íè h X‹øƒçÁèÀ3ö‹Ëó¤ah ëèp ëh  è şÿuŸYƒÇ â^j`j Ë‹ŞÑë&‹° sÁîæÿÃ¸ Pj & „$¢¹è% 3Û´„ÍXsHuäë4¹û t¹» ˆ.\ 2íÃ  ¹´ÍÃj ¹´ÍXsêPèèÿXHPuíú°æ7ôëı¹ ó¦uñÃ                         ë
+  IPL1  ` j ¼ğè5 èh èÛ èø ÿ.  IO      SYSMSDOS   SYSMS-DOS INF AREA  6 „$¢K ¹ º Q‹ÊR3Ò» h  3íè@ü¾; ¹ 3ÿó¦ZYt{BâÜé€ &ŠEÁà
+£
+ÿ&‹EèX £ÿ‰ÿ&‹E3Ò2í&ŠM÷ñÑàÑÒ¹ ÷ñ@P÷á£ÿX&öe&EPè& [PR¸  &÷eÁè
+ÁâÂÃè ‰ ÿ£ÿZY» éÂ Áà™&E
+&UÃè
+ uè téÁ ¾% 3ÿë¾0 ¿  ¹ ó¦Ãèy ½ j ¹ 3ÿƒÇQh  &‹5¡
+ÿ‹ØÁè‹ÖJJ÷âÿ ÿ‹È‹ÃÅs)h `U3íèP h X‹øƒçÁèÀ3ö‹Ëó¤ah ëè0 ëh  è ƒşÿu¦YƒÇ â–Ã‹ÿ‹ÿ‹ÿ½ ëÑæ&‹´ Ãj K ´ÍXsÚP K ´ÍXHPuéú°æ7ôëı                                                  ëZEPSON4.0        ø                )                               IO      SYSMSDOS   SYSj ¼ğüV¡ 3Ò  ‰£ è%  ÷& £¡ ÷á  £‰¡ ÷& £‰
+2ä  ÷&  ÷á  PYh @3íèV¾F 3ÿè¾Q ¿  è^¸ €3Ò÷6 £¸  ‹‹» €3íÀèÑ ¡ƒ ŒÀ = @rØ½ j ¹ 3ÿƒÇQh @&‹5¡‹ØŠÓè‹ÖJJ÷â ‹È‹ÃÅs)h `U3íèv h X‹øƒçÁèÀ3ö‹Ëó¤ah ëèV ëè ƒşÿu§YƒÇ â—^j`j Ë¸  Ñæs¸ 0À&‹4Ãj & „$¢‹ ¹û tşÅĞé>  tĞáˆ.2íÃj ´ÍXsóP ´ÍXHPuéú°æ7ôëı¹ ó¦uñÃ       ŒÈØŒò	‰&ğ	Ğ¼ş3ÀÀ& „$¢¨ u´Í€ä€üu´ ÍèÚò	‹&ğ	Ë´ ÍÃ¸  À& ò?$ğ¢ÃU‹ìWV¸  À‹F‹ğ¬< tèÛ rŠà¬ë´ è ëê^_]ÃWSP¡»  ÷ã‹øX€ü u	«ëÿë?èÄ è´ r€ì †à« ô	Šà&‰…şÿë!€ì †à«€Ì€« ô	Šà&‰…ü&‰…şÿÿ[_ÃP°å¢ô	XÃP°á¢ô	XÃ´ÍÃU‹ìWV´² ¶áÍèãÿ‹F´
+Í´Í^_]ÃU‹ìWV´ Í»‹CC‹¸p‹è‹
+Š& Í^_]Ã<r<Ÿv<àr<üvùëøÃø€ü)t€ü*tùÃ€üàr
+€ìàĞä€Ä_ë€ìĞä€Ä!<s,ë<Ÿs, ë,~şÄÃSQR´„ 3ÛÍƒû u
+» ²!¶¹f‰
+ÑëÑëÑëÑëÑë‰‰ˆˆ6ZY[Ã‹ì‹FŠ*í÷áFŠ*í÷áFƒÒ ‹È¸ÀÀ3í» ´ Í¡‹ğ3ÀØê  À U‹ìƒìWVèxÿè&ş+ÀPPègƒÄ j¢ k¢è­ €> téœ €>€uV $€<€uM°ö&‹ğŠ„3$€<€u;Š„2$€<€u1 *ä£ $ < u % ±ÓèŠ*í;Áë $À<Àuèâ+É¾3¿2Š$€<€uŠ$€<€t
+ƒÆƒÇAëç‰Ç  èÿ6è’ƒÄè0èÅ^_‹å]ÃU‹ìƒìWVÇFş  ƒ> ~^+ö¿2ÇFğ3ÇFî4¡‰FìFşÆ„  ÇFü  ‰vø‹Ş+À¹ W¿!ó«ª_ÇFü Æ ‹^ğÆ ‹^îÆ ƒÆƒÇƒFğƒFîÿNìuº¸ ™RPè-ƒÄÇFú  ÆÇFş  ƒ> éÚ  *ä‰FôÇFöq+ÿ‰~ìÇFø3ÇFêqÇFè2ÇFæpÇFä4‹vş‹^ö€? ué„ ‹ÆşÀˆ… ÇFü  ‰~î‹ß‡!‹^ì¹ VW‹ø·€ó¥_^ÇFü ‹^êŠ‹^øˆ‹^æŠ‹^èˆ‹^øŠ$€<€u‹^èŠ$€<€uÆ €>€u‹Æ;Fôu‹^äÆ€ƒÇƒFøƒFèƒFäÿFúƒFö ƒFì ƒFê ƒFæ F;6}éWÿ‰vş^_‹å]ÃU‹ìƒìWV+ÀPèüƒÄ+ÀP¸B PèƒÄö t¸úë¸ñPèÆûƒÄ+ÀP¸L PèàƒÄ *ä% ‹ÈÑàÁ‰Füö uƒFü‹Fü³
+PèûƒÄ+ÀP¸ PèªƒÄ¸õ	PèyûƒÄ¸ P¸ Pè’ƒÄ¸
+PèaûƒÄ¸ P¸ PèzƒÄ¸=
+PèIûƒÄ¸ P¸: PèbƒÄ¸c
+Pè1ûƒÄ¸ P¸ PèJƒÄ¸x
+PèûƒÄÇFü  ƒ> ~5¿Ë
+‹vüD‰FúP¸ PèƒÄ‰~şWèìúƒÄVè2ƒÄƒÇF;6|Ô‰vüè“¸ P¸ PèîƒÄ¸û
+Pè½úƒÄèVû^_‹å]ÃU‹ìƒìWVÆ¡‰Fşè‡ú‰Fü=ué­ = :t= ;ué” = <t{= =ul‹>‹6~ü :u	‹ÇÆHëD+Ò‹Ï÷ñ‹ò¸ ÷æ‹ØŠ‡3$€<€uÔ¸ ÷æ‹ØŠ‡2$€<€uÃ‰6‹Æ9FştÿvşèpƒÄÿ6è,ƒÄÇ  èÄ €>u)é_ÿè) ¡@+Ò¹ ÷ñ‰ëßè ¡ ëèèMëÑ^_‹å]ÃU‹ìƒì¸ ÷&‹ØŠ‡3$€<€up¡ ‰Fş¡Àt= t= t?‹å]Ãÿvş¸" Pè¼ƒÄ¸šë8ÿvş¸0 PèªƒÄ¸ ÷&‹Ø€¿4€u¸¸ë¸§ëÿvş¸B Pè‚ƒÄ¸ÉPèQùƒÄ‹å]ÃèÕùèlÿè×ùÃU‹ìƒìWVÇFş  ƒ> ~q¿!ÇFú3ÇFø2‹vş€= tG‹^úŠ$€<€u<‹^øŠ$€<€u1DP¸ PèƒÄ€>€u‹ÆŠ*í;Áu¸”ë¸—PèÒøƒÄƒÇƒFúƒFøF;6|¢‰vş^_‹å]ÃU‹ìƒìV¸ ÷n‹ğ€¼! ué ÿvè ƒÄ‹F ‰FşP¸" Pè§ ƒÄŠ„3$€<€uPŠ„2$€<€u@¸šPèbøƒÄÿvş¸0 Pè| ƒÄ€¼4€u¸¸ë¸§Pè>øƒÄÿvş¸B PèX ƒÄ¸Éë	¸çë¸ìPèøƒÄ^‹å]ÃU‹ì‹F P¸ Pè) ƒÄ¸ ÷n!Pèò÷ƒÄ]ÃU‹ìèvøÿvèÎÿƒÄèrø]ÃU‹ì‹F£‹F£]ÃU‹ì‹F‹V£‰Æèrø]ÃU‹ì‹F‹V£‰ÆèXø]Ã¡Àt= t= tÃ+ÀPèøƒÄè¢ Ãè Ã+ÀPèøƒÄÆ ÃU‹ìƒìV+ÀPPèŠÿƒÄ¸ ÷&‹ğÆ4€<€uÆ Æ Æ ë9€>€u°ö&‹ØÆ‡4  *äPè]şƒÄ¸ ÷&‹ØÆ‡4€Æ€ ¢è²ıè¥ı ¢j ¢k+ÀPPè.ÿƒÄ^‹å]ÃU‹ìƒìV¸ ÷&‹ØŠ‡ *äH‰Fü¡±Óà
+£¸ ™RPèÛşƒÄ‹vü±Óæ‹„v‰FşŠ„u*ä‰FøŠ„t‰FúPÿvøÿvşèô÷ƒÄ^‹å]Ã              áEPSON PC ¼Ø°½Ş ŒÅ’èƒfƒBƒXƒN@ƒXƒ^\ƒgEƒAƒbƒv@ƒvƒƒOƒ‰ƒ€  Version 4.00 Copyright (C) SEIKO EPSON CORP. 1987, Revised Edition 1990 —ÌˆæNO      —Ìˆæ–¼Ì                      —§‚¿ã‚°•û–@‘I‘ğ ‚O ‚P ‚Q ‚R ‚S ‚T ‚U ‚V  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 –îˆóƒL\‚Å—Ìˆæ‚Æ—§‚¿ã‚°•û–@‚ğ‘I‘ğ‚µ‚Ä‰º‚³‚¢BƒŠƒ^\ƒ“ƒL\‚Åİ’è‚³‚ê‚Ü‚·B ƒfƒBƒXƒN‚Ì“à—e‚ª“Ç‚ß‚Ü‚¹‚ñ‚Å‚µ‚½B     ƒfƒBƒXƒN‚Ö‚Ì‘‚İ‚ª‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½B © @ —§‚¿ã‚°“®ì ©“®—§‚¿ã‚°İ’è ©“®—§‚¿ã‚°‰ğœ Ÿ‚Ìƒhƒ‰ƒCƒu ‘¼‚ÌƒVƒXƒeƒ€@@ g—p ‹x~   ‚g‚c‚c ‚r‚b‚r‚h                                                                                                                                                                                                                                                                                                                                                                                           ô˜<<NMSG>>  R6000
+- stack overflow
+  R6003
+- integer divide by 0
+ 	 R6009
+- not enough space for environment
+ ü 
+ ÿ run-time error   R6002
+- floating point not loaded
+  R6001
+- null pointer assignment
+ ÿÿÿ                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       y.
+     Example:
+     (setq veba '(a b c))   => (a b c)
+     (setq hiba '(1 2 3))   => (1 2 3)
+     (linsert veba hiba 1)  => (1 a b c 2 3)
+     veba                   => (a b c 2 3)
+     hiba                   => (1 a b c 2 3)
+ 
+
+ 
+   SYMBOL ACCESSING/MANIPULATING FUNCTIONS
+
+   (set x y)                    LAMBDA SM
+     Sets value of symbol pointed by x to be y.
+     Example:
+     (setq a 'b)  => b
+     (set a 'c)   => c
+     a            => b
+     b            => c
+
+   (setq x y)                   NLAMBDA SM
+     Sets value of x (unquoted) to be y. First argument can be
+     a symbol, or pick-expression for which the arguments and
+     local variables of the functions are automatically converted.
+     This corresponds to the assignment statements of the other
+     programming languages, like = in C.
+     Example:
+     (setq a 'b)  => b
+     a            => b   ; a's value is now b.
+
+
+   (symeval sym)                LAMBDA P
+     Returns value-field of symbol sym. Equivalent to (eval sym)
+     but quicker.
+ 
+   (plist sym)                  LAMBDA P
+     Returns property-list field of the symbol sym. If *plist-flag*
+     is off returns always ().
+
+   (setplist sym x)             LAMBDA SM
+     Sets property-list field of the symbol sym to be expression x.
+     (Which doesn't need to be a list). Returns x.
+     If *plist-flag* is off then this doesn't have any effect.
+     Example: (setplist 'kala 'hauki) => hauki
+     (plist 'kala) => hauki
+ 
+   (get sym prop)
+     Returns the value associated with property name prop in sym's
+     property list. Sym can also be a disembodied property list.
+
+   (getproploc sym prop)
+     Auxiliary function for get and putprop.
+
+   (putprop sym propvalue prop)
+     Adds to the property list of sym the propvalue associated with
+     the property name prop. Returns propvalue.
+
+   (remprop sym prop)
+     The property name prop and its associated value are removed from
+     the property list of sym. Something is returned.
+
+   (setxbit sym expr)           LAMBDA SM
+     Sets X-bit of symbol to zero if expr is 0 or NIL, otherwise
+     to 1. Returns expr.
+
+   (getxbit sym)                LAMBDA P
+     Returns X-bit of symbol in numerical format, either as 0 or 1.
+
+   (xbitp sym)                  LAMBDA P
+     Returns X-bit of symbol in logical format, either as () or t.
+ 
+     Note! These xbit-functions use one surplus-bit left over in
+     implementation of symbols. By default all symbols' X-bits are
+     zeros. In program HUBAFISH.LSP they are used to decide whether
+     words read in were originally capitalized (sentence read mode).
+
+   (defun fun-name [discipline] formal-args-list body...)  NLAMBDA SM
+     Defines a function and sets its body to value of symbol fun-name.
+     Optional discipline argument can be lambda, nlambda or vlambda.
+     If not specified, then lambda is used. All formal args encountered
+     from body are replaced by their corresponding pick-forms
+     (function pick-subst is used for that), and formal argument list
+     itself is replaced by the length of itself. Formal argument list
+     can contain keywords &aux, &opt or &optional but they are simply
+     ignored. If it contains list-expressions or keyword &rest they
+     are also ignored but warning message is printed.
+     fun-name is returned as result.
+
+
+   EVALUATION AND FLOW OF CONTROL FUNCTIONS 
+ 
+   (eval x)                     LAMBDA P
+     Returns a lisp-expression x evaluated.
+     Symbols evaluate to their values. List-expressions are given
+     to apply, except quoted expressions which evaluate to themselves.
+     Pick-forms evaluate to the stuff in stack they are refering to.
+     All other things evaluate to themselves.
+ 
+   (apply fun arglist)          LAMBDA P
+     Returns a result of function fun applied to arglist.
+     Examples:
+     (apply 'plus '(1 2 3 4 5))   =>  15
+     (apply 'list '(a b c d e))   =>  (a b c d e)
+
+   (funcall fun arg1 ... argn)  NLAMBDA P
+     Returns a result of function fun applied to arguments
+     following after it.
+     Example:
+     (funcall 'plus 1 2 3 4 5)    =>  15
+ 
+   (cond clause1 clause2 ... clausen)  NLAMBDA P
+     Executes the first clause whose test-exp produces non-nil
+     result, and returns the value of last expression in that clause.
+     Clauses are of the form (test-exp [exp1 exp2 ...] expn)
+     If test-exp evaluates to nil, then next clause is tested,
+     but if not, then expression(s) after it are executed.
+     If there's more than one expression after test-exp, then all
+     except last one are executed only for their side-effects,
+     and value of the last one is returned as a result of whole
+     cond-form.
+     Clause can also be only one expr, like (test-expr) so if it
+     evaluates to non-nil then that is also returned as result
+     of cond.
+
+   (if test then-expression else-expression(s)) NLAMBDA P
+     If test-expression evaluates to non-nil, then then-expression
+     is executed and returned as result. Otherwise else-expressions
+     are executed and a result of the last one is returned.
+  
+   (and exp1 exp2 ... expn)                     NLAMBDA P
+     Expressions are started to evaluate from left to right. When
+     encountered first one which produces nil, the execution is
+     stopped to that point, and nil is returned. If none of them
+     produces nil, then result of the last one is returned.
+
+   (or exp1 exp2 ... expn)                      NLAMBDA P
+     Expressions are started to evaluate from left to right. When
+     encountered first one which produces non-nil, then that is
+     returned as result, and rest of expressions are not evaluated.
+     If all of them produce nil, then nil is returned.
+ 
+   (progn exp1 exp2 ... expn)                   NLAMBDA P
+     Expressions are evaluated from left to right, and result of the
+     last one is returned, unless (return expr) is executed before that.
+
+   (while test-expr body...)                    NLAMBDA P
+     Evaluates test-expr and if that produces non-nil then executes
+     the expressions of body from first to last, and then loops back
+     to test-expr to do the same thing. When test-expr evaluates to
+     nil returns number of times went loop around. (return exp) can
+     also be used to escape while-loop.
+
+   (return [expr])              VLAMBDA P
+     Returns: never returns. Instead forces the surrounding progn 
+     or while-expression immediately to return expr as its value.
+     Without argument, () is used.
+     Note that this is NOT like the return-statement of the C-language,
+     but instead like break-statement, used to escape from the loops, etc.
+     If this function is not executed inside of progn or while
+     expression (in execution time sense), it jumps back to toplevel.
+ 
+   (mapc fun arglist1 arglist2 ... arglistn)   VLAMBDA PS
+     Function fun is applied to successive elements of the arglists.
+     The last value produced is returned. This is usually used
+     only for side-effects.
+     Example: (mapc #'prin1 '(1 2 3)) prints 123 and returns 3 as result.
+ 
+   (mapcar fun arglist1 arglist2 ... arglistn) VLAMBDA PL(?)
+     Function fun is applied to successive elements of the argument
+     lists. The list of the resulting values is returned.
+     Example:
+     (mapcar 'cons '(a b c) '(1 2 3))   => ((a . 1) (b . 2) (c . 3))
+
+   (mapcan fun arglist1 arglist2 ... arglistn) VLAMBDA PML(?)
+     Function fun is applied to successive elements of the argument
+     lists, and the resulting values are nconced together and returned.
+     This is semantically (although not in practice) equivalent to
+     (apply #'nconc (mapcar fun arglist1 arglist2 ... arglistn))
+     Example:
+     (mapcan #'list '(a b c) '(1 2 3))  => (a 1 b 2 c 3)
+ 
+   (maprplaca fun arglist1 arglist2 ... arglistn) VLAMBDA PM
+     Function fun is applied to successive elements of the argument
+     lists. The resulting values are rplaca'ed to the first arglist,
+     and that is returned as the result.
+     Example:
+     (setq kala '(0 1 2 3))   => (0 1 2 3)
+     (maprplaca #'neg kala)   => (0 -1 -2 -3) ; Negate all the numbers in kala
+     kala                     => (0 -1 -2 -3) ; kala is modified physically.
+ 
+ 
+   STRING FUNCTIONS
+
+     Note that almost all of these functions accept both string and
+   symbols as their arguments. If symbol is supplied to function,
+   then its printname is used. Only in cases where argument is
+   modified it's not wise to supply symbol, because if symbol's
+   printname is changed its hash value is probably changed too,
+   and then it's not found from *oblist* anymore with its new
+   name. However, the hash-function in oblisfun.c doesn't care
+   about the case of characters.
+     Most of these functions are stolen from the C language, and
+   their syntax is just the same. (like strcpy, strlen, etc).
+ 
+   (new-string n)               LAMBDA PR(n+1)
+     Allocates string for at least n letters (+ 1 for ending zero)
+     from memory and returns that. At least the first character
+     is originally \0 so string looks like "".
+
+   (@ s [n])                    VLAMBDA P
+     Returns character fetched from the position n of the string s.
+     If n is absent, then character is fetched from position 0, i.e.
+     the first character.
+     Examples:
+     (@ "liha")          => `l`  ; Fetch first character.
+     (@ "liha" 3)        => `a`
+
+   (@= s c [n])                 VLAMBDA M
+     Sets n:th character of string s to be c, and returns physically
+     so modified string. If n is absent first character is modified.
+     Note that both @ and @= use zero-based indexing, as in C-language.
+     Examples:
+     (setq kala "hauki")   => "hauki"
+     (@= kala `o` 4)       => "hauko"  ; Change last character
+     (@= kala `k`)         => "kauko"  ; Change first character
+     kala                  => "kauko"
+
+   (strcat s1 s2)               LAMBDA M!!
+     Returns strings s1 & s2 concatenated together. Note that s1
+     should contain enough space so that s2 fits into it too.
+
+   (strncat s1 s2 n)            LAMBDA M!
+     Returns strings s1 & s2 concatenated together, so that at
+     most n characters of s2 are concatenated to s1.
+
+   (strcpy s1 s2)               LAMBDA M!!
+     Copies string s2 over string s1 and returns new s1. Note that
+     s1's size should be at least (strlen s2) + 1 so that s1 fits
+     into it.
+
+   (strncpy s1 s2 n)            LAMBDA M!
+     Copy at most n characters of string s2 to s1, return s1.
+     Pad with `\0`s if s2 has fever than n characters.
+ 
+   (strcmp s1 s2)               LAMBDA P
+     Compares the strings s1 & s2 and returns -1, 0 or 1 depending
+     whether s1 is alphabetically less than, equal, or greater than
+     s2. I.e. just like in C.
+     Examples:
+     (strcmp "ankka" "banaani")   => -1
+     (strcmp "lakua" "lakua")     => 0
+     (strcmp 'meripeto 'kumipeto) => 1
+ 
+   (strncmp s1 s2 n)            LAMBDA P
+     Compares at most n characters of string s1 to s2 and returns
+     -1, 0 or 1 depending whether s1 is alphabetically less than,
+     equal, or greater than s2. I.e. just like in C.
+
+   (strchr s c)                 LAMBDA P
+     Returns pointer to first occurrence of character c in string s
+     or () if not present.
+     Examples:
+     (strchr "Ankka" `k`)   =>  "kka"
+     (strchr "lisma" `Q`)   =>  ()
+
+   (strrchr s c)                LAMBDA P
+     Returns pointer to last  occurrence of character c in string s
+     or () if not present.
+     Example:
+     (strrchr "Ankka" `k`)  =>  "ka"
+
+   (strlen s)                   LAMBDA P
+     Returns the length of string s.
+     Examples:
+     (strlen "")     => 0
+     (strlen 'ankka) => 5  ; This can be applied also to symbols.
+
+   (strdup s)                   LAMBDA PR(strlen s + 1)
+     Returns the new copy of string s.
+     Example:
+     (strdup 'lahna) => "lahna"
+
+   (strequ s1 s2)               LAMBDA P
+     Returns t if strings s1 and s2 are alphabetically equal,
+     () otherwise.
+     Example:
+     (strequ "kala" "liha")  => ()
+     (strequ "anus" "anus")  => t
+
+   (*strequ s1 s2)              LAMBDA P
+     Like previous but doesn't care about the case of characters.
+     Example:
+     (*strequ "kala" "KalA") => t
+ 
+   (streq s1 s2)                LAMBDA P
+     Returns s2 if string s1 is alphabetically equal to beginning
+     of the string s2. Otherwise returns ().
+     Example:
+     (streq "kala" "kalaisaa")  => "kalaisaa"
+
+   (*streq s1 s2)               LAMBDA P
+     Like previous but doesn't care about the case of characters.
+     Example:
+     (*streq "aNKka" "AnkkAlammikko")  => "AnkkAlammikko"
+
+   (strmatchp s pattern)        LAMBDA P
+     Returns pattern if string s matches to pattern.
+     St. Vitus' Lisp's string match is something between
+     filename match (of TOPS-20, RSX-11M or Unix) and
+     regular expressions used in Unix.
+     Pattern can contain following characters:
+
+     ?   Matches to one character which can be anything.
+     *   Matches to zero or more of any characters.
+
+     <   Start of the "group-expression", which contains some chars,
+          and must end in >
+         If first char after < is ^ then its semantics are negated.
+         If first char after < or ^ is > then it's not understood yet
+         as end delimiter. Examples:
+ 
+         <abc>          Matches any of the letters a, b and c.
+         <^0123456789>  Matches anything except digits.
+         <>>            Matches to >
+         <^>>           Matches anything except >
+         <*>            Matches to asterisk.
+
+     @   Matches character last matched to ? or group-expression.
+         For example ?*@ matches to all strings which begin with the
+         same character they end.
+         However, if the pattern starts with @ then it sets the group
+         start & end characters, e.g. pattern: @{tuu<ba{123}pasuuna
+         matches to anything which begins tuu<ba then after that is
+         1, 2 or 3 and after that pasuuna.
+
+     Any other characters match just to themselves.
+
+     Note that unix-like [0-9] (corresponding to <0123456789>) is not
+     implemented yet.
+     < and > are used instead of unix-style brackets because [ and ]
+     are usually used for big A with dots and with ball in Finnish/
+     Scandinavian text. (So called seven-bit scandinavian letters)
+     Note that function (apro [pattern]) uses also the same matching
+     system.
+ 
+     Examples:
+       This matches to any symbol/string which is beginning with ?,
+       second char. after that being letter a, then something where
+       is - and
+       last character is o:
+     (strmatchp "?Xakana-juusto" "<?>?a*-*o")  => "<?>?a*-*o"
+       This matches to any symbol/string which begins and ends with
+       same character, except if that character is the letter a or i:
+     (strmatchp 'ohio  '<^ai>*@)   => <^ai>*@  ; Succeeds
+     (strmatchp 'akana '<^ai>*@)   => ()       ; Fails.
+
+   (*strmatchp pattern s)       LAMBDA P
+     Like previous but arguments are in another order, and
+     returns string s if match succeeded.
+
+   (istrmatchp s pattern)       LAMBDA P
+     Returns index information if string s matches to pattern,
+     otherwise (). Selit{ joskus.
+     Example:
+     (setsubtype (istrmatchp "TAJUATKO" "???*K<O\>") 4)  => <79,6>
+     In high byte is 79 (= `O`) and low byte contains index where
+     K is in string.
+
+   (strfmatchp s1 s2 [difflim]) LAMBDA P
+     Compares s1 to s2 with fuzzy matching, and returns count
+     of differences if it's under difference limit, otherwise
+     returns (). If third argument difflim is not specified,
+     then it depends by default from the length of string s1,
+     so that for lengths 0-2 it's 0, for 3-4 it's 1, for 5-8
+     it's 2 and if length is over that it's 3.
+     However, if difflim is specified, then that is used
+     always as difference limit, regardless of the length
+     of arguments.
+     Example:
+     (strfmatchp "ektoplasma" "etolasta")  => 3
+     ; There is three differences between those words.
+     (strfmatchp "epatto" "lepakko")       => ()
+     ; Again there is three differences, but because that is over
+     ; two (which is default max. diff. limit for six char string),
+     ; return () instead.
+
+   (convert-string s fun)       LAMBDA M
+     Returns string s modified so that every character of it is
+     replaced by the character function fun returns when given
+     that original character as argument. Function fun should
+     take one argument of type character and it should also
+     return character (or other integer type).
+     Examples:
+     (setq s "epatto")             => "epatto" ; Create a string
+     (convert-string s #'toupper)  => "EPATTO" ; Convert s to uppercase.
+     s                             => "EPATTO" ; S is modified.
+     Following converts seven-bit scandinavian letters to eight-bit ones:
+     (convert-string "[{li|" #'sevenbit2ibm)  => "„li”"
+
+   (substchars s c1 c2)         LAMBDA M
+     Modifies the string a so that every occurrence of character c1
+     is replaced by the character c2. Returns the number of substitutions
+     made.
+     Example:
+     (setq veba "banaani")       => "banaani"
+     (substchars veba `a` `b`)   =>  3
+     veba                        => "bbnbbni"  ; veba is modified.
+
+   (delchars s c)               LAMBDA M
+     Modifies the string s so that every occurrence of the character
+     c is deleted from it, and returns the number of deletions made.
+     Example:
+     (setq hiba "tursas")    => "tursas"
+     (delchars hiba `s`)     => 2        ; There were two s letters.
+     hiba                    => "tura"   ; hiba is modified.
+
+
+   Character classification functions:
+
+                                           Characters producing success:
+   (isalphap c)                 LAMBDA P   A-Za-z
+   (isupperp c)                 LAMBDA P   A-Z
+   (islowerp c)                 LAMBDA P   a-z
+   (isdigitp c)                 LAMBDA P   0-9
+   (isxdigitp c)                LAMBDA P   0-9A-Fa-f
+   (isalnump c)                 LAMBDA P   0-9A-Za-z
+   (isspacep c)                 LAMBDA P   space, tab, formfeed or newline
+   (ispunctp c)                 LAMBDA P   various punctuation chars.
+   (iscntrlp c)                 LAMBDA P   ???
+   (isprintp c)                 LAMBDA P   ???
+   (isgraphp c)                 LAMBDA P   ???
+   (isasciip c)                 LAMBDA P   < 128
+   (isoctdigitp c)              LAMBDA P   0-7
+
+     These functions test whether character c belongs to
+     corresponding character class, and returns that character
+     if it does, otherwise ().
+     These functions use corresponding macros of Aztec-C
+     (although these are not fucked up by chars > 127).
+     Note that you can change the behaviour of these macros by fiddling
+     with *ctp* string which is just the same as ctp_ of the underlying
+     C system containing character classification bits for all the
+     seven-bit ascii-characters.
+     Examples:
+     (isoctdigitp `7`)  => `7`
+     (isoctdigitp `8`)  => ()
+
+   (tolower c)                  LAMBDA P
+     Returns lowercase version of character c, if it's uppercase.
+     Otherwise it's returned intact.
+
+   (toupper c)                  LAMBDA P
+     Returns uppercase version of character c, if it's lowercase.
+     Otherwise it's returned intact.
+     Examples:
+     (toupper `a`)   => `A`
+     (toupper `*`)   => `*`
+
+   (ibm2sevenbit c)             LAMBDA P
+     Returns corresponding seven-bit version of c, if it's
+     diacritic letter of the so called IBM/PC extended ascii,
+     otherwise it's returned intact. Following mappings are
+     made:
+
+      Character     Description.    Decimal    Seven-bit
+      in extended                   value.     mapping.
+      ascii.
+
+                   A with dots.    142        [
+       „            a with dots.    132        {
+                   A with circle.  143        ]
+       †            a with circle.  134        }
+       ™            O with dots.    153        \
+       ”            o with dots.    148        |
+       š            U with dots.    154        ^
+                   u with dots.    129        ~
+
+
+   (sevenbit2ibm c)             LAMBDA P
+     This is like function ibm2sevenbit, but conversion is done
+     on the other way, so that braces, brackets, etc. are
+     converted to the corresponding eight-bit letters.
+
+   (setscandmode x)             LAMBDA PS
+     This sets scandinavian mode if argument is non-nil,
+     otherwise clears it. Returns as a result the previous mode,
+     i.e. NIL or T. That is, it sets bits in the internal ctp_
+     character type table for the so called seven-bit scandinavian
+     characters (which are used as diacritic letters in some
+     of the European languages) so that "issomething" macros of C,
+     defined in ctype.h, think that they are normal letters.
+     And of course, also those issomethingp functions described
+     above.
+
+
+   INPUT/OUTPUT FUNCTIONS
+
+   (infile filename)            LAMBDA S
+     Tries to open file filename (which can be a string or symbol),
+     and if it's opened then returns the corresponding file pointer as
+     result. If it cannot open file then prints error message and goes
+     back to toplevel.
+
+   (outfile filename [mode])    VLAMBDA S
+     Tries to open file called filename, and if that's succesfull
+     returns a port (= file pointer) to that file.
+     If there's second argument which is symbol or string starting
+     with letter A, then file is opened in append-mode. Otherwise
+     it's overwritten if file with the same name existed beforehand.
+     If file cannot be opened for output, an error message is printed,
+     and execution leaps back to toplevel.
+      
+   (close port)                 LAMBDA S
+     Specified port is drained and closed, and () is returned.
+
+   (drain [port])               VLAMBDA S
+     Specified output port is flushed (i.e. characters still in
+     IO-buffer are forcibly written to file), and () is returned.
+     If argument is missing *stdout* is used.
+
+   (read [port [exp]])          VLAMBDA P/M L(variable)
+     Returns the next lisp expression read from the given or default
+     port (= *stdin*). On end of file, exp is returned. The default
+     () is used if exp is unspecified.
+     Note that port can also be a string, and in that case first
+     expression is "read in" from it, and rest of string is moved
+     (with strcpy) to the beginning of string, so that it can be
+     read next time.
+     Example:
+     (setq kala "a (b c d) 777")   => "a (b c d) 777"
+     (read kala)                   => a ; Read first item from kala string.
+     kala                          => " (b c d) 777" ; kala is modified...
+     (read kala)                   => (b c d) ; read the second item.
+     kala                          => " 777"  ; only one item left to kala
+     (read kala)                   => 777     ; read that number also.
+     kala                          => ""      ; and now kala is in the end.
+     (read kala '*EOF*)            => *EOF*   ; so read returns eof-expression
+ 
+   (readtostring string maxcount [port]) VLAMBDA M
+     Reads max. maxcount characters long line from input port to string,
+     and returns that as result. If port is absent then *stdin* is
+     used. This is like a fgets in the C language, but this doesn't
+     put that newline to the end of string.
+
+   (readline [port [eof_exp]])  VLAMBDA M
+     Reads max. 79 char. long line from input port, surrounds it
+     with parentheses, and reads that as list which is returned.
+     If port is absent *stdin* is used. When end of file is
+     encountered eof_exp is returned. If it's absent, () is used.
+     This is also quite unnecessary function, maybe later removed.
+
+   (print expr [port])          VLAMBDA SP
+     Prints expression expr on the port, or on the *stdout* if
+     second argument is absent. If there's any quotes in expression
+     (backquotes around chars or doublequotes around strings)
+     they are printed too. Newline is printed after the expression,
+     except when output is to the string. If port is () then expr
+     is printed to /dev/null (that is, it's not printed anywhere)
+     and count of bytes required to print it is returned.
+     Returns expr.
+     Examples:
+     (print "juustoa" fileport) prints string "juustoa" surrounded
+     by quotes and followed by newline to fileport and also returns
+     that string as the result.
+     (print '("a" `b`) ())  => 9 ; Returns 9 but doesn't print anything.
+
+   (prin1 expr [port])          VLAMBDA SP
+     This is like print but doesn't output newline after the
+     expression.
+     Returns expr.
+ 
+   (princ expr [port])          VLAMBDA SP
+     This is like prin1 but doesn't print quotes around characters
+     and strings. port can also be a string, like in previous two.
+     Returns expr.
+     Example:
+     (princ "juustoa") ; Prints string juustoa without doublequotes and
+     without the newline. Returns "juustoa" as a result.
+     (princ '("a" `b`) ())  => 5 ; Returns 5 but doesn't print anything.
+
+   (terpri [port])              VLAMBDA SP
+     A newline is sent to port. If argument is missing *stdout* is
+     used. () is returned as result. Note - currently port must be a
+     file pointer.
+
+   (spaces n [port])            VLAMBDA SP
+     N spaces are output to port. If second argument is absent,
+     then *stdout* is used. Port can also be a string.
+     Returns n as result.
+
+   (prinx expr [port])          VLAMBDA SP
+     Prints expr in internal hex-format to *stdout*
+     (without newline). Returns expr. This is useful mainly
+     in debugging.
+
+   (print-longcell longcell [port]) VLAMBDA P
+     Prints longcell to the port with format string specified in
+     16th (zero-based) element in *integer-printtypes* compact list.
+     By the default it's "%lu", i.e. it's printed as long integer,
+     without leading zeroes, and without newline.
+     Example:
+     (print-longcell '(0 . 1)) prints 65536
+     (without newline) and returns (0 . 1) back.
+ 
+   (load filename)              LAMBDA SPL(variable)
+     Reads and evaluates expressions from file named filename
+     (can be symbol or string). If there's no period (.) in
+     the filename, then .lsp is appended to end.
+     If filename cannot be opened then error message is printed
+     and control is transferred back to toplevel.
+     Names of defined functions (with defun) are printed,
+     and collected to list which is put to value of filename
+     if it's symbol. Total count of all expressions is returned.
+ 
+   (tyi [port [exp]])           VLAMBDA P
+     Returns the next character from the input stream port.
+     On end of file exp (default -1) is returned.
+     If port is absent then current line buffer is used.
+     (tyi can be used with this way in read macros).
+     
+   (tyipeek [port [exp]])       VLAMBDA P
+     Like previous but doesn't actually read the character, just
+     peeks it. It can be read later with tyi for example.
+
+   (tyo c [port])               VLAMBDA SP
+     Character c is printed on port, or to *stdout* if second argument
+     is absent.
+
+   (zapline)
+     All characters from the current line buffer are discarded, and
+     endmark is returned. This is used as the read macro function
+     definition of the semicolon comment character. Note that in
+     Franz Lisp same function returns nil, in SVL endmark for
+     the technical reasons.
+     Example:
+     If user enters from toplevel the following expressions on
+     the same line:
+     (+ 1 2) (* 2 3) (zapline) (princ '(never executed))
+     then number 3 is returned for first expression, number 6 for
+     the second, and endmark, i.e. <OTHER-0xFFFF:FFFF> is returned
+     last, but stuff after (zapline) is never executed because
+     it cleared the line buffer before the next expressions could be
+     read in.
+
+   Some functions to be used only in user-defined read macros:
+
+   (read-next-to-string string maxcount)  LAMBDA SM!
+     Copies the next continuous group (but not exceeding maxcount)
+     of characters to the string from current line buffer, and
+     return that string as result. "Continuousness" of the characters
+     are determined by the iscontinuousp function (actually by
+     underlying C-function).
+       This function can be used by the user defined read macros
+     to read stuff from input. (And should not be used on other
+     occassions!).
+
+   (set-lineptr line)           LAMBDA S!!
+     This sets an internal variable lineptr to point to the string
+     supplied as argument, and returns endmark as result. This is
+     also used only in read macros to set the point where reading
+     will continue, so line should be pointing to the internal line
+     buffer, not to any other string! If it's set point to the
+     character which triggered this read-macro, i.e. to the start
+     of string supplied as argument to read macro, and read macro
+     also returns endmark, then that read macro is simply ignored
+     and stuff is read in the normal way.
+
+   (iscontinuousp line)         LAMBDA P
+     If first character of line is "continuous", then line is returned,
+     otherwise ().
+
+   (intern s)                   LAMBDA PL(?)R((strlen s) + something)
+     Returns symbol with print name s from *oblist*. If it's not
+     already there symbol with that print name is created and put there.
+     Argument can be a string or a symbol.
+ 
+   (lookup s)                   LAMBDA P
+     Returns symbol with print name s from *oblist*. If it's not
+     found from there () is returned.
+     Argument can be a string or a symbol.
+
+   (reset-readmode)             LAMBDA SP
+     This resets the internal I/O tables and global variables to
+     values they had on the starting of the interpreter. And returns
+     (). Here is some default syntactical conventions:
+ 
+     '  is the read macro for quote, e.g. 'a becomes to (quote a)
+     #' is used for function-quote, e.g. #'xyz => (function xyz)
+     `  is used for characters, e.g.  `a` or `\t`
+     "  is used for strings, e.g. "this is a string"
+     ;  is comment character, everything after that to the end
+        of line is simply discarded.
+     ( and ) are used for lists.
+     .  inside parentheses is used for dotted-pairs. E.g. (a . b)
+        is a dotted pair whose car-field is symbol a and cdr-field is
+        symbol b.
+     Integers begin with + or - or with digit, and contain only digits
+     after that, or if it ends in period, (e.g. 123.), then it is always
+     understood as decimal number, otherwise global variable ibase
+     determines whether it will be octal or decimal (= default) number.
+     If number begins with 0 it's always understood as octal (in that
+     case it cannot end with period). E.g. 0177777
+     If number begins with 0x it's hexadecimal, e.g. 0xaBCd
+     Other stuff read in is usually interned as symbols.
+     Following are an examples of symbols:
+     kala 2SWAP * 1x100 123456
+     Note that symbols can begin also with digit provided that they
+     contain some non-digit, non-period characters after that.
+
+
+   NON-RETURNING FUNCTIONS
+
+   (exit)                       LAMBDA PS
+     Never returns. Instead exits to shell from the lisp interpreter.
+
+   (reset)                      LAMBDA PS
+     Never returns. Instead stops the execution and transfers
+     control back to toplevel.
+
+
+   PREDICATES
+  
+     Note that these functions generally return their argument
+   back if it belongs to that typeclass or otherwise fulfills
+   the condition, and () otherwise, except in few cases where
+   it's not possible, like with listp or eq and so on where
+   () itself can also fulfill the condition. In more traditional
+   lisps all these functions usually return just t or ().
+
+   (atom x)                     LAMBDA P
+     Returns t if x is atom, () otherwise. All objects except
+     cons cells are atoms, i.e. this is equivalent to (not (consp x)).
+     Examples:
+     (atom 'kala)      => t
+     (atom ())         => t   ; NIL is also atom.
+     (atom '(a b c))   => ()  ; Lists are only things which are not atoms.
+
+   (boundp x)                   LAMBDA P
+     Returns t if x is symbol which has a value, i.e. its value
+     is not *unbound*, otherwise ().
+     When reading in lisp mode all new symbols' values are initialized
+     to *unbound*, but with other readmodes (like sentence, C, etc.)
+     they are initialized to (), so they are not understood as unbound.
+
+   (compactp x)                 LAMBDA P
+     Returns x if x is compact list node, i.e. if its car-part has
+     compact-bit on. Otherwise returns ().
+     Example:
+     (compactp (clist 'a 'b 'c))  => (a b c)
+
+   (consp x)                    LAMBDA P
+     Returns x if x is cons cell, normal or compact one. Otherwise ().
+     Example:
+     (consp '(a . b))  => (a . b)
+     (consp ())        => () ; Nil is not a cons cell.
+
+   (endmarkp x)                 LAMBDA P
+     Returns t if x is endmark, otherwise ().
+     Example: (endmarkp (end*mark))  => t
+
+   (eq x y)                     LAMBDA P
+     Returns t if objects x and y are physically same object,
+     otherwise ().
+     Examples:
+     (eq 'a 'a)     => t
+     (eq 0 `\0`)    => t  ; Integers with different subtypes are considered
+                          ;  equal.
+     (eq '(a) '(a)) => () ; Those two lists are not physically same, use equal
+     (eq "a" "a")   => () ; Different strings, although alphabetically same,
+                          ;  use strequ for testing string equality.
+
+   (equal x y)                  LAMBDA P
+     Returns t if objects x and y are logically equal, otherwise ().
+     Examples:
+     (equal '(a b) '(a b))  =>  t  ; Physically different lists are recognized
+                                   ; also equal (if they are logically so).
+     (equal "ab" "ab")      =>  () ; Physically different, alphabetically
+                                   ; equalent are not recognized equalent,
+                                   ; use strequ. (Maybe I should edit this?)
+
+   (greaterp n1 n2)             LAMBDA P
+     Returns n1 if integer n1 is greater than integer n2, otherwise ().
+     Comparison is done on the basis that integers are unsigned.
+     Examples:
+     (greaterp 1 -1)   => () ; Because -1 is actually 65535 this fails.
+     (greaterp 2 1)    => 2
+
+   (lessp n1 n2)                LAMBDA P
+     Returns n1 if integer n1 is less than integer n1, otherwise ().
+     Comparison is done on the basis that integers are unsigned.
+     Example:
+     (lessp 5 -1)  => 5  ; 5 is less than 65535.
+
+   (intp x)                     LAMBDA P
+     Returns x if x is integer, otherwise (). Subtype of
+     integer doesn't matter.
+     Example:
+     (intp 3)    => 3
+     (intp `k`)  => `k`  ; Characters are also kind of integers.
+
+   (listp x)                    LAMBDA P
+     Returns t if x is list, i.e. cons cell or nil.
+     Example:
+     (listp ())  => t  ;Nil is also list (although it's not proper cons cell)
+
+   (neq x y)                    LAMBDA P
+     Returns t if x and y are physically different objects, otherwise ().
+     Equivalent to (not (eq x y)).
+
+   (nilp x)                     LAMBDA P
+   (not x)                      LAMBDA P
+   (null x)                     LAMBDA P
+     These are all synonyms. They return t if x is (), otherwise ().
+     I.e. for all non-nil objects they return nil.
+
+   (nonnilsymbolp x)            LAMBDA P
+     Returns x if x is proper symbol, otherwise ().
+     Sorry, name is a little bit cumbersome, but symbolp returns t
+     also from ().
+
+   (symbolp x)                  LAMBDA P
+     Returns t if x is symbol, otherwise (). Returns t also from
+     (), although it's not symbol at all in St. Vitus' Lisp,
+     but this is for compatibility (what's that ?) with other lisps.
+     Use nonnilsymbolp if you want to be sure that your code works.
+     Example:
+     (symbolp 'kala)  => t
+     (symbolp ())     => t
+ 
+   (otherp x)                   LAMBDA P
+     Returns x if x belongs to type class others, i.e. it's
+     string, binary coded function, file pointer or endmark.
+     Otherwise ().
+     Example:
+     (otherp "sika")   => "sika"  ; Strings are also "others".
+
+   (bcdp x)
+     Returns x if x is bcd, i.e. binary coded internal function
+     (coded with C or assembler), otherwise ().
+
+   (portp x)
+     Returns x if x is port, i.e. the file pointer of the underlying
+     C system, like *stdin* or *stdout*. Otherwise ().
+
+   (stringp x)                  LAMBDA P
+     Returns x if x is string, otherwise ().
+
+   (*stringp x)                 LAMBDA P
+     Returns x if x is string or symbol, otherwise ().
+     Examples:
+     (*stringp "kala")   => "kala"
+     (*stringp 'kala)    => kala
+
+   (zerop x)                    LAMBDA P
+     Returns x if x is integer which is zero, otherwise ().
+     Doesn't care about the subtype of integer.
+     Example:
+     (zerop `\0`)   => `\0` ; Character zero is also zero.
+
+   (minusp x)                   LAMBDA P
+     Returns x intact if it's negative number, i.e. its bit-15
+     is on. Otherwise returns ().
+     Examples:
+     (minusp 32768)  => -32768  ; Bit-15 is on, returns number back.
+     (minusp 32767)  => ()
+
+   (plusp  x)                   LAMBDA P
+     Returns x intact if it's positive number, i.e. its bit-15
+     is off. Otherwise returns ().
+     Example: (plusp 65535)   => ()
+
+   (sub-while-plusp x y)        LAMBDA M!
+     This hairy function is coded just for the hubafish.lsp.
+     It works as follows:
+     If y is not integer, then return NIL immediately.
+     x must be integer, or name of symbol whose value is integer,
+     or pick-expression whose value is integer.
+     y is subtracted from the value x represents, and if x is symbol
+     or pick-expression, then that is set to be a new value of x.
+     If difference was positive, i.e. zero or more, then NIL is returned,
+     otherwise is returned that negative result.
+
+
+   ARITHMETIC FUNCTIONS
+
+     Note that these functions DON'T check their arguments, whether
+   they are really integers or not. So functions like add1, sub1,
+   + and - can be applied also to other objects, mainly to strings,
+   and perhaps to compact lists. All the functions defined in
+   ARITHMET.ASM, namely add1, sub1, +, -, *, /, %, neg, sxt, $not,
+   $and, $or, $xor, $shl, $shr and $sar return their result with
+   the type bits of their first (and in some cases only one)
+   argument.
+
+   (add1 n)                     LAMBDA P!
+     Returns object n increased by one.
+     Note that n doesn't need to be a integer, it can be
+     also a string.
+     Examples:
+     (add1 3)       => 4
+     (add1 `A`)     => `B`
+     (add1 "kala")  => "ala"
+     (setq veba (clist 'a 'b 'c))  => (a b c) ; Create a compact list.
+     (+ veba 3)     => (b c) ; Take cdr of it. Note that this kind
+     ; of coding is strongly disapproved because size of the compact
+     ; list cell can be changed in future versions of the SVL.
+     ; Use cdr function instead, or qnth or qnthcdr.
+
+   (sub1 n)                     LAMBDA P!
+     Returns object n (usually integer) decreased by one.
+
+   (+ n1 n2)                    LAMBDA P!
+     Returns the sum of the objects n1 and n2. Note that n1
+     doesn't need to be a integer.
+     Example:
+     (+ 0 `A`)  => 65 ; Adds zero to `A` and returns it as normal
+     ; decimal integer. Same thing would be accomplished by the
+     ; (setsubtype `A` 0)
+ 
+   (- n1 n2)                    LAMBDA P!
+     Returns the difference of the objects n1 and n2.
+     Example:
+     (setq kala "hauki")    => "hauki" ; Create a string.
+     (setq liha (+ kala 3)) => "ki"    ; Set liha point to 3 chars after.
+     (- liha 2)             => "auki"  ; One character backward...
+     (+ 0 (- liha kala))    => 3       ; Returns the difference of liha & kala
+     ; + 0 is required so that result will be converted to normal decimal
+     ; integer, because otherwise it would remain as string pointing to
+     ; some garbage.
+
+   (* n1 n2)                    LAMBDA P!
+     Returns the product of the integers n1 and n2.
+
+   (/ n1 n2)                    LAMBDA P!
+     Returns the quotient of the integers n1 and n2.
+
+   (% n1 n2)                    LAMBDA P!
+     Returns the remainder of the integers n1 and n2.
+
+   (neg n)                      LAMBDA P!
+     Returns integer n negated.
+     Example: (neg 1)  = > -1
+
+   (sxt n)                      LAMBDA P!
+     Returns the low byte of integer n sign-extended.
+     Example:
+     (sxt 255)   =>  -1
+
+   ($not n)                     LAMBDA P!
+     Returns complement of integer n.
+     Example:
+     ($not 0)   =>  -1
+
+   ($and n1 n2)                 LAMBDA P!
+     Returns bitwise-and of integers n1 & n2.
+
+   ($or  n1 n2)                 LAMBDA P!
+     Returns bitwise-or  of integers n1 & n2.
+
+   ($xor n1 n2)                 LAMBDA P!
+     Returns bitwise-xor of integers n1 & n2.
+
+   ($shl n1 n2)                 LAMBDA P!
+     Returns integer n1 shifted left by n2 bits..
+
+   ($shr n1 n2)                 LAMBDA P!
+     Returns integer n1 shifted right by n2 bits.
+     (Logical shift).
+
+   ($sar n1 n2)                 LAMBDA P!
+     Returns integer n1 shifted right by n2 bits.
+     (Arithmetical shift).
+
+   (plus n1 n2 n3 ... nn)       VLAMBDA P
+     Returns the sum of its arguments.
+     Example:
+     (plus)             => 0   ; returns zero if no arguments.
+     (plus 1 2 3 4 5)   => 15
+
+   (times n1 n2 n3 ... nn)      VLAMBDA P
+     Returns the product of its arguments.
+     Example:
+     (plus)             => 1   ; returns one if no arguments.
+     (plus 1 2 3 4 5)   => 120
+
+   (subtype n)                  LAMBDA P
+     Returns the subtype of integer n.
+     Examples:
+     (subtype 17)      => 0  ; Normal integers are of subtype 0.
+     (subtype 0xBEEF)  => 1  ; Hexadecimal numbers' subtype is 1.
+     (subtype 02)      => 2  ; Octals     2
+     (subtype `A`)     => 3  ; Characters 3
+
+   (setsubtype n t)             LAMBDA P
+     Returns the integer n modified so that its subtype is set to t.
+     Example:
+     (setq kala 65)        =>  65
+     (setsubtype kala 3)   =>  `A`  ; Get character version.
+     kala                  =>  65   ; Original kala is intact, of course.
+
+   (pick n)                     LAMBDA P!!
+     Returns n:th item from the stack. (Computed by adding 4*n to
+     current framepointer).
+     (pick 1) corresponds to pick-form <#pick 4> and
+     (pick 2) corresponds to <#pick 8>
+
+   (intran n)                   LAMBDA P
+     Returns random integer between 0 and n-1 inclusive.
+     For example, (intran 3) can return 0, 1 or 2.
+
+   (setseed [longcell])         VLAMBDA SM/P
+     Sets seed number of the random generator.
+     If no arguments at all then uses current time,
+     otherwise 32-bit integer which is represented in longcell.
+     Returns as result the longcell which contains two integers
+     which make the 32-bit seed number, so that car is low word and
+     cdr is high word.
+     Note! There's PERHAPS some mystic bug in this function, so that
+     it sometimes
+     returns different seed than what was given, or something...
+     Anyway, Aztec's random-algorithm isn't good anyway.
+     Examples:
+     (setseed)               =>  (2601 . 13)  ; Set seed according to time.
+     (setseed '(123 . 456))  =>  (123 . 456)  ; Set seed to 456*65536 + 123.
+     EDITOI T[T[, SAMOI mem-free ja mem-used.
+
+   MISCELLANEOUS
+ 
+   (apro [pattern])             VLAMBDA PS
+     Search from the *oblist* all symbols which match to specified
+     pattern, and shows them and their values. (unless value is
+     a string, then it's only informed that it's string). If argument
+     is missing, pattern is asked from user. It's better to use
+     string-arguments because they don't go to *oblist*, like
+     symbol-arguments. For explanation of patterns, see strmatchp.
+     Returns a number of matched symbols.
+     Examples:
+     (apro "set*")  ; Show all symbols (i.e. function names) beginning with
+                    ; letters set
+     (apro "<*>*@") ; Show all symbols beginning and ending with asterisk,
+                    ; i.e. global variables.
+
+   (argv n)
+     Returns a string copy of the n:th command line argument given
+     to the lisp interpreter. If n is less than zero then returns
+     the number of command line arguments (i.e. like argc in C). 
+
+   (getenv env_var_name)
+     Returns a string copy of the contents of env_var_name. If
+     that doesn't exist () is returned. Env_var_name can be a
+     string or symbol.
+
+   (help)                       LAMBDA PS
+     Prints some rudimentary help, and returns ().
+
+   (dir [pattern])              VLAMBDA PL(number of matched files)
+     Returns list of filenames matching to pattern. If argument
+     is absent then returns all filenames of the current directory.
+     One misfeature is that returns also names of the directories
+     and volume-labels. Should fix this in future.
+     Example:
+     (dir "*.asm")  => (pushargs.asm pointers.asm lsetjmp.asm arithmet.asm)
+
+   (shell [command])            VLAMBDA PS
+     Executes command in the shell, and returns t if status returned
+     by system function of C was 0 (= succesful), and () if it was -1,
+     i.e. execution failed because command interpreter wasn't found or
+     didn't fit to memory.
+     If argument is absent, go to shell. I.e. (shell) is equivalent
+     to (shell "command").
+     Example:
+     (shell "list lisp.doc")  ; Browse this file from the interpreter.
+
+   (sleep n)                    LAMBDA PS
+     Sleeps n seconds and returns as result number of seconds since
+     midday or midnight. Note that if compiled with Aztec-C then
+     actually spends time in idle loop. There is at least one bug:
+     This function stops sleeping at New Year's midnight, even if
+     sleeping time would last over it.
+
+   (end*mark)                   LAMBDA P!!
+     Returns endmark, for any possible weird purposes user has
+     on his/her mind.
+     Example:
+     (end*mark)                     => <OTHER-0xFFFF:FFFF>
+     (list 'a 'b (end*mark) 'c 'd)  => (a b)  ; list takes only
+     a and b into list, because there's endmark immediately after.
+
+   (pick-subst farglist body)   LAMBDA SM
+     Returns body (of lambdaform) so that formal arguments specified
+     in farglist are physically substituted by their corresponding
+     pick-forms. This is an auxiliary function for defun. See that.
+
+   (handle-farglist farglist)   LAMBDA SM
+     Returns the length of formal argument list farglist given to it
+     as argument, so that keywords like &aux, &opt, etc. are deleted
+     from it, and notice is printed for possible incorrect/unimplemented
+     keys. This is an auxiliary function for pick-subst.
+
+   (free-cons l)                LAMBDA SM!!!
+     Frees first cons-cell of l (which shouldn't be a compact list!) and
+     returns old cdr of it. I.e. puts first cons-cell to first of
+     freelist.
+     Example:
+     (setq kala '(a b c d e))  => (a b c d e)
+     (free-cons kala)          => (b c d e) ; Frees node (a) and returns rest
+     kala                      => (a ()) ; kala points now to freelist and
+                                           shouldn't be used anymore!
+
+   (free-list l)                LAMBDA SM!!!
+     Frees list l (i.e. concatenates it to freelist), and returns
+     new freelist, which shouldn't be used for anything.
+     (Maybe you can take length of it, but don't otherwise meddle
+     with it, if you want to avoid bugs).
+
+   (set-max-args n)             LAMBDA SP!!
+     This sets internal flag _max_args to value specified by integer n,
+     and returns old value of _max_args.
+     _max_args determines maximum argument count for those VLAMBDA
+     functions with 0 specified arguments. (E.g. functions like plus,
+     nconc, mapcar). By default it's eight. If more arguments are given
+     for that kind of function they are simply discarded. (And that causes
+     lots of mysterious bugs!).
+     Example:
+     (plus 1 2 3 4 5 6 7 8)      => 36 ; Takes sum of 1 - 8 ok.
+     (plus 1 2 3 4 5 6 7 8 9)    => 36 ; But this is wrong, because 9 is
+                                       ;  not taken to sum.
+     (set-max-args 10)           => 8  ; Set new value of _max_args to be 10
+     (plus 1 2 3 4 5 6 7 8 9 10) => 55 ; Now sums numbers from 1 to 10 ok.
+
+   (daytime)                    LAMBDA SP
+     This returns a static string of date and time in Unix-format.
+     If string is printed immediately after then it's okay to use
+     that static version, but if more of those dates are collected,
+     then they should be copied with strdup or interned so that
+     corresponding symbols are produced.
+     Note that functions argv, getenv and daytime all use the same
+     static string buffer (= *staticbuf*) for which to they copy
+     their result before returning it. (That's because otherwise we
+     couldn't be sure that strings they return wouldn't lie at the
+     segment boundary).
+     Example: 
+     (daytime)  =>  "Mon Aug 19 02:08:33 1991"
+
+   (seconds_of_day)
+     This returns seconds since 12.00 (am or pm). Note that because
+     there's 86400 seconds in 24 hours, and that doesn't fit to sixteen
+     bits, we must return seconds since last midnight or midday.
+     Example:
+     (seconds_of_day)  =>  3604
+
+   (hsecs)
+     Returns low word of the hundredths of seconds since beginning
+     of this year. Only problem is that this value is updated
+     only about once in 0.05 seconds.
+
+   (memstat)                    LAMBDA SP
+     This prints information about memory usage and returns t.
+     Example:
+     (memstat) prints:
+
+     ** MEMORY USAGE **
+     heap: 0x7dce0008
+     _lowlim: 0x71990008   _allocp: 0x70003ce5   _uplim: 0x7dce0008
+     _uplim  - _lowlim: (TOTAL) 0xc350 / 50000.
+     _allocp - _lowlim: (USED)  0x234d / 9037.
+     _uplim  - _allocp: (FREE)  0xa003 / 40963.
+     sizeof(void *): 4   SIZEOF_INTERNAL: 3   SIZEOF_CONSCELL: 6
+     _strsavecnt: 2857. / 0xb29   _clistsavecnt: 526.   *3: 1578. / 0x62a
+     (_strsavecnt + (3 * _clistsavecnt) + (6 * length(_oblist))) = 5707.
+     _consalloc_cnt: 767   *6: 4602   _residueconscnt: 0
+     linebuf=(memstat)
+     strlen(linebuf): 9
+     lineptr=
+     strlen(lineptr): 0
+     length(_freelist): 1   length(_free_strings_list): 0
+     length(_oblist): 212.   *6: 1272.
+     plist_flag: 1   freelist_warnings: 0   last_of_freelist: ()
+
+     and returns t.
+     Value after TOTAL is by default 150000, but can be changed by
+     setting environment variable MAXMEM to suitable value before
+     starting lisp. (E.g. set MAXMEM=400000)
+     USED tells how much of allocation space is used, and FREE tells
+     how much of the virgin memory is still left free.
+     length(_freelist) tells the length of freelist, i.e. how much
+     normal cons cells can be get from it, before virgin memory is
+     used.
+
+   (mem-free [longcell])        M/L(1)
+     This returns a longcell representing the number of free bytes
+     still left in that memory chunk lisp allocated at the starting
+     time, i.e. same value memstat prints after word FREE:
+     If argument is supplied (which should be a cons cell) then
+     its car and cdr-fields are replaced by the result and that
+     is returned.
+
+   (mem-used [longcell])        M/L(1)
+     This returns a longcell representing the number of used bytes
+     in memory system.
+     If argument is supplied (which should be a cons cell) then
+     its car and cdr-fields are replaced by the result and that
+     is returned.
+
+   (get-free-list)              LAMBDA P!!!
+     Returns freelist. See note after function (free-list).
+
+   (gfp)                        LAMBDA SP
+     Returns value of framepointer (as hex).
+
+   (deb [port])                 LAMBDA SP
+     Prints debugging information about various system variables.
+     If port is not specified then prints it to *stdout*.
+
+   (fake high low)              LAMBDA P!
+     Returns the lisp object constructed from high and low, which
+     should be integers. High is used for segment/subtype and tag
+     portion, low for offset or integer-value portion.
+     Example:
+     (prinx 'luu) prints internal representation 7400:056B and returns luu
+     (fake 0x7400 0x056B) => luu
+     (fake 0 0)        => () ; Nil is represented internally as longword zero
+ 
+ 
+ 
+  
+Global variables:
+
+   $
+     A dollar symbol keeps always the last value returned to toplevel.
+     This is a handy feature when testing some code, or when using
+     interpreter as a desktop calculator.
+     Example, show some powers of 2:
+     (+ 1 1)   =>   2
+     (+ $ $)   =>   4
+     (+ $ $)   =>   8 ; Only F3 and enter are needed to continue...
+     (+ $ $)   =>  16
+
+
+   t
+     This symbol is used as a default non-nil value. So it's "true"
+     like every other non-nil lisp-object, as opposed to () which is
+     "false". Note that integer zero, i.e. 0 or `\0` is
+     also understood as "true" (Remember this with while loops!).
+     t has the value t, and shouldn't be changed, at least not to () !
+
+
+   ibase
+ 
+     Value of this should be either 0, 8, or 10. It's input radix of
+     those numbers where radix is not explicitly indicated by some
+     convention (like 0x for hexadecimals, 0 for octals and ending-period
+     for decimals). By default this is 10, so normal integers are
+     read in as decimals. If it's 8 they are read as octal numbers,
+     even if they don't begin with 0. If it's zero then numbers are
+     not read at all as integers, instead they are all interned as
+     symbols. This symbol is taken from Franz Lisp. Maybe I should
+     edit the code in future so that it accepts also other bases than
+     eight or ten (at least all below eleven).
+
+    *io-flags*
+     This is string pointer pointing to the start of flag table.
+     There is also following global string variables pointing to
+     the corresponding flags (they are defined in module lists.h):
+
+                 /* Default value and meaning: */
+    *abrev-char*     = 0; /* No abbreviations */
+    *debug-flag*     = 0; /* No debug printing */
+    *dins-flag*      = 0; /* Intern new symbols */
+       If dins (Don't Intern New Symbols) flag is on,
+       then new symbols encountered in read are not interned, but
+       are instead replaced by ()'s. This can be an useful feature
+       if you write some command interface with read and don't want
+       that user fills the memory with incorrectly typed commands.
+       Example:
+       (setq kala '(hauki anjovis salakka))
+       => (hauki anjovis salakka)
+       (not (@= *dins-flag* 1)) => () ; Set the flag on
+       (setq kala '(makrilli hauki kuha anjovis))
+       => (() hauki () anjovis) ; hauki and anjovis are old symbols,
+                                ; new ones are replaced by nils.
+
+    *dtpr-flag*      = 1; /* Recognize dotted pairs on input */
+    *esc-flag*       = 1; /* Recognize escape sequences in strings */
+       Example:
+       (setq kala "sika\tnauta")  => "sika	nauta" ; By default backslash
+       ; escapes are substituted.
+       (not (@= *esc-flag* 0))    => ()  ; Set the flag off.
+       (setq liha "sika\tnauta")  => "sika\tnauta" ; Now they are not.
+
+    *ibmscand-flag*  = 0; /* Do not convert scandis on output */
+       Example: ; Create a symbol with seven-bit scandis in its name:
+       (setq kala 'uppercase:[]\^and_lowercase:{}|~)
+       => uppercase:[]\^and_lowercase:{}|~
+       (not (@= *ibmscand-flag* 1)) => ()  ; Switch the flag on.
+       kala  => uppercase:™šand_lowercase:„†” ; Now scandis are converted.
+
+    *nil-flag*       = 1; /* Convert nil in input to () */
+    *plist-flag*     = 1; /* Allocate space for plist's too */
+    *prefix-char*    = 0; /* No prefixes (this is for KANJIDIC) */
+    *quote-char*     = '`'; /* Use backquote for printing */
+    *quote-flag*     = 1; /* By default use quotes on printing */
+    *sent-flag*      = 0; /* No sentence mode */
+    *speclist-flag*  = 0; /* No special printing for special lists */
+    *warning-flag*   = 0; /* No warning system enabled (for KANJIDIC) */
+
+
+   *integer-printtypes*
+ 
+     This is compact list of 17 elements used by print-routines
+     for printing various subtypes of integers (elements 0 - 15)
+     and for printing the longcells with print-longcell (last
+     element).
+     Elements of this list can be nils, strings, binary functions
+     or lisp-functions. If element is () then first element is
+     used to print that integer subtype. If element is string
+     then that string is used as format-string for C's printf
+     function. If it's binary- or lisp-function then that function
+     is called with that integer as argument, and it should return
+     something which is then printed.
+     List's default value is:
+ 
+     ("%d" <OTHER/BCD-0x0C00:67BE> "0%o" <OTHER/BCD-0x0C00:67F2>
+     <OTHER/BCD-0x0C00:6840> "<#pick %u>" () () () () () () () () () () "%lu")
+
+     We see that normal integers (subtype 0) are printed as signed
+     integers, for hexadecimals (subtype 1), characters (subtype 3)
+     and bytepairs (subtype 4) internal C-coded binary-functions
+     are used. Octal numbers (subtype 2) are printed with digit zero
+     preceding them, and pick-forms (subtype 5) are printed like:
+     <#pick 4>  All others are printed as integers. And longcells
+     are printed as long unsigned integers without leading zeros.
+     With this and read macros you can also define your own pseudotypes,
+     like roman numerals or kanji-characters. For example, you
+     can use any of the free subtypes to create roman numerals,
+     and put to *integer-printtypes* function which takes a integer
+     and creates corresponding roman number to string (like "XIV")
+     and then that is printed.
+     Then choose some character which you use to preceding roman
+     numerals in input stream, like &XIV and define read macro for
+     that character which converts following roman number to binary.
+ 
+     Examples:
+     (rplacx 0 *integer-printtypes* "%u")
+     => ("%u" <OTHER/BCD-0x0C00:67BE> "0%o" etc...)
+     -1    =>  65535  ; Now integers are printed as unsigned.
+     (rplacx 2 *integer-printtypes* "%06o")  => ...
+     0123  => 000123  ; Now octals are printed always with precision six,
+                      ; with leading zeroes.
+
+
+   *read-macros*
+
+     This is a compact list of 256 elements. By default, most of them
+     are (), and then corresponding character is handled by read-routines
+     as it's normally handled. But if there's binary- or lisp-function
+     in that place then that function is called, and it should read
+     more stuff from the current input (use (tyi) (tyipeek)
+     (read-next-to-string string count) or (read *curin*) for that
+     purpose), and what function returns becomes part of input stream.
+     Read macro is called with one argument, a string pointer
+     pointing to that character which triggered that read macro.
+
+     There is following global variables assigned to internal C-coded
+     binary functions:
+
+   *octhex-rm*
+     This is read macro assigned to character '0' by default. It examines
+     whether number following is octal number or hexadecimal, and returns
+     corresponding number if it is. However, if there's . (period) following
+     the number or some continuous characters, then control is transferred
+     for *number-rm* which takes care of that.
+
+   *number-rm*
+     This is read macro assigned to character -, +, and 1-9 by default,
+     and handles reading the following number.
+
+   *comment-rm*
+     This is read macro assigned to character / (slash) and examines
+     if the following character is * (asterisk), and if it's then input
+     is skipped until the next */ is encountered. However if character
+     after the triggering slash is not * then that stuff is read in
+     normal way. This read macro implements C-like comments /* */
+
+   *zapline-rm*
+     This is read macro assigned to character ; (semicolon) and it
+     discards all the characters after and including that semicolon
+     from the current line buffer. This read macro implements
+     traditional Lisp & Assembly-like comments.
+
+   *listbegin-rm*
+     This is read macro assigned to character '(', i.e. left parenthesis
+     and starts the list-reading subroutine which is executed until
+     ')' is encountered.
+
+   *clistbegin-rm*
+     This is like previous but reads the list in as compact one.
+     By default they are read as normal lists, but if you are reading
+     very much data in list format, and don't do weird physical
+     manipulations to them, and you don't intend to free them later
+     (compact lists cannot be freed!), and compact lists on the input
+     are never longer than 100 elements (constant SIZEOF_CLISTREADBUF
+     defined in lists.h), it's maybe advisable set the readmacro for
+     left parenthesis to be *clitbegin-rm*, so much of the memory
+     space is saved.
+     (Compact list nodes take only three bytes of memory compared to
+     six bytes of normal list nodes).
+     Example:
+     (compactp '(a b c))      => ()  ; By default list are read as normal.
+     (rplacx `(` *read-macros* *clistbegin-rm*)  ; Replace the read macro.
+     (compactp '(a b c))      => (a b c) ; Now lists are read in as compact.
+
+   *listend-rm*
+     This is read macro which should be assigned to all those
+     corresponding "ending"-characters, whose "beginning"-characters
+     has been assigned with *listbegin-rm* or *clistbegin-rm*.
+     By default this is assigned to character ')'. But if
+     *listbegin-rm* or *clistbegin-rm* has been assigned to characters
+     [, {, and/or < then this should be assigned respectively
+     to characters ], }, and/or >.
+     
+   *value-rm*
+     This is read macro used by KANJIDIC for getvalue-readmacro
+     (one comma), and for getenvvar-readmacro (two commas).
+     In St. Vitus' Lisp this hasn't been assigned to any character.
+     Example: ; Assign it to comma character:
+     (not (rplacx `,` *read-macros* *value-rm*))  => ()
+     (setq kala 'veba)  => veba ; kala's value will be symbol veba.
+     (setq liha '(piip ,kala juusto ,,COMSPEC ,puuro))  =>
+       (piip veba juusto C:\COMMAND.COM *unbound*) ; Get it ?
+
+   *quote-rm*
+     This is the traditional lisp read macro assigned to character '
+     (singlequote) and implements the following behaviour: 'a on input
+     is changed to (quote a).
+
+   *function-rm*
+     This is traditional lisp read macro assigned to character #
+     and checks first whether following character is ' and if not, then
+     that stuff is read in with normal way, but if it's then following
+     expression is read in and list is made where it's preceded by
+     symbol function. I.e. #'print becomes (function print)
+
+   *charquote-rm*
+     This is assigned to character ` (backquote) and implements
+     character constant reading routine.
+
+   *stringquote-rm*
+     This is assigned to character " (doublequote) and implements
+     string constant reading routine.
+
+   *symbol-rm*
+     This is assigned to character `\0` (i.e. null) which is never
+     encountered on input, and so this is called if corresponding
+     character hasn't been assigned to any other read macro, or
+     corresponding read macro has returned endmark.
+
+   *wordsymbol-rm*
+     This is alternative to previous one, and is used by hubafish.lsp
+     program.
+   
+   *ctp*
+
+     This is character type table ctp_[] of Aztec-C, i.e. it's string
+     of 129 bytes, and those bytes contain various bits that determine
+     corresponding type class where character belongs, i.e. alphabetic,
+     digit, hexdigit, punctuation, etc. First byte is for DEL, second
+     for '\0', third for '\1' (i.e. ^A), etc. so you should index
+     *ctp* as (@ *ctp* (add1 `c`)) where `c` is the corresponding character.
+     It's unfortunate that Aztec-C's ctp_ is not for all 256 characters,
+     so characters over 127 can often cause all kind of bugs.
+     Maybe I write later better table for all 256 characters.
+     Note that functions isalphap, isupperp, isdigitp, etc use this table.
+     Note! This concept is buggy, because we cannot be sure that ctp_
+     doesn't lie at the segment boundary, and if it lies, then the
+     functions @ and @= can accidentally access or modify the WRONG
+     bytes. So, please don't use this.
+
+ 
+   *stdin*
+   *stdout*
+   *stderr*
+
+     These are standard input, standard output and standard error output
+     filepointers, and are just the same as those of underlying C-system.
+
+
+   *curin*
+
+     This is "current input" stream, which is always assigned to same
+     stream as latest one opened with infile function or load (which
+     uses infile). This should be used with read-macros.
+
+     Anyway, read system is little bit misfeaturous because it uses
+     only one read buffer (_read_buf in lists1.c), and when reading
+     from many files at the same time the whole process goes haywire.
+     Should invent some solution to this in future.
+
+   *linebuf*
+
+     This is the internal linebuffer defined in the module lists1.c
+
+   *oblist*
+
+     This is the object list of the system. All symbols encountered
+     on input are checked whether they are in this list, and if they
+     are then that symbol is returned. If not then that symbol is
+     put to *olist* into proper place.
+
+
+   *obtable*
+
+     This is compact list of X elements, each one being a pointer
+     to *oblist*, to that position where is first symbol with that
+     hash value, and () if there's still no symbols encountered with
+     that hash value. X is by the default 251, but can be changed
+     by setting the environment variable OBTABSIZE to desired value
+     before starting the lisp. And that value should be a prime
+     number so that hashing system remains effective!
+     E.g. SET OBTABLE=101 before starting the lisp sets size of
+     *obtable* to be 101, which is a prime.
+     Here are the prime numbers from 101 to 997:
+     101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163,
+     167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233,
+     239, 241, 251, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311,
+     313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389,
+     397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463,
+     467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563,
+     569, 571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631, 641,
+     643, 647, 653, 659, 661, 673, 677, 683, 691, 701, 709, 719, 727,
+     733, 739, 743, 751, 757, 761, 769, 773, 787, 797, 809, 811, 821,
+     823, 827, 829, 839, 853, 857, 859, 863, 877, 881, 883, 887, 907,
+     911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997.
+
+ 
+
+   *screen*
+
+     This is string pointer to B000:8000, i.e. to the beginning
+     of the CGA-videomemory, where every even byte is character
+     of the screen, and every odd is corresponding attribute.
+     If you have some different screen address you can set this
+     variable to it by using the fake-function or by debugging the
+     lisp.exe (this is initialized at the beginning of module lisp.c).
+     Note that address should be in conanized format ored with the
+     type-bits of string.
+     Example:
+     (@ *screen*)    => Get character from upper left-hand corner of screen.
+     (@ *screen* 1)  => Get attribute of that character (usually 7).
+
+   *staticbuf*
+
+     This is the static string buffer used by the functions argv, getenv
+     and daytime. See description of the daytime for more information.
+
+   *lambdaforms*
+
+     List of disciplines used in St. Vitus' Lisp,
+     namely (lambda nlambda vlambda).
+
+   *newsymbvalue*
+
+     This defines what value is used to initialize all the new symbols
+     intern encounters when reading input. By default this is *unbound*.
+     Example:
+     (setq *newsymbvalue* 'huihai)  => huihai  ; Set it to symbol huihai
+     hiihaa                         => huihai  ; hiihaa is the new symbol
+                                            ; and its value is set to huihai
+
+   *unbound*
+
+     Symbol set to be value of all the new symbols read in
+     during lispmode. When eval encounters this kind of
+     symbol, it says:
+     eval: Unbound Variable: uusi
+     (if uusi is symbol's name). See also function boundp.
+ 
+
+   Address of the author:
+
+     Antti J. Karttunen
+     karttu@mits.mdata.fi
+
+     Neitsytsaarentie 8 B 8
+     00960 HELSINKI
+     FINLAND, EUROPE
+     Tel: +358-0-313 724  (home)
+          +358-0-701 8428 (workshop)

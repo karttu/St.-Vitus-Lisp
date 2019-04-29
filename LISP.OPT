@@ -1,0 +1,6 @@
+lisp.lo lispfuns.lo lisp-io.lo lists2lp.lo lstrfuns.lo
+lists1.lo lists2.lo allofuns.lo oblisfun.lo strisave.lo parsechr.lo
+stksiz64.lo globals.lo itoasc.lo allocs.lo myfuns.lo wildcard.lo
+strfmatc.lo hrflag.lo strfuns2.lo sindex.lo
+arithmet.lo conanize.lo fundamen.lo lsetjmp.lo pushargs.lo streq.lo
+-lsld -lcld -n -t

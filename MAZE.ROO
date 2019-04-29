@@ -1,0 +1,46 @@
+
+(setq *prefix* "players/ayahuascar/")
+
+; First element defines the short name, second one the long name,
+; and third, the last one, whether there is light on by default (1=on, 0=off).
+; Of course you can use many different description for the rooms, just
+; define them in the same way.
+
+(setq DESC
+  '("Corridor"
+    "You are in the narrow corridor, with white, plastered walls.\n"
+    1
+   )
+)
+
+; This list should have exactly the same name as this filename
+; without extension .ROO
+(setq MAZE
+ '(
+     (maze1  DESC e maze2  s maze24)
+     (maze2  DESC e maze3  s maze18)
+     (maze3  DESC s maze4  w maze2)
+     (maze4  DESC n maze3  s maze5  w maze12)
+     (maze5  DESC n maze4  w maze6)
+     (maze6  DESC n maze22 e maze5  w maze7)
+     (maze7  DESC n maze8  e maze6)
+     (maze8  DESC n maze9  e maze16 s maze7)
+     (maze9  DESC e maze10 s maze8)
+     (maze10 DESC e maze11 w maze9)
+     (maze11 DESC s maze12 w maze10)
+     (maze12 DESC n maze11 e maze4  s maze13  w maze20)
+     (maze13 DESC n maze12 w maze14)
+     (maze14 DESC e maze13 w maze15)
+     (maze15 DESC e maze14 n maze16)
+     (maze16 DESC n maze17 e maze24 s maze15  w maze8)
+     (maze17 DESC e maze18 s maze16)
+     (maze18 DESC n maze2  e maze19 w maze17)
+     (maze19 DESC s maze20 w maze18)
+     (maze20 DESC n maze19 e maze12 s maze21)
+     (maze21 DESC n maze20 w maze22)
+     (maze22 DESC e maze21 s maze6  w maze23)
+     (maze23 DESC n maze24 e maze22)
+     (maze24 DESC n maze1  s maze23 w maze16)
+  )
+)
+
